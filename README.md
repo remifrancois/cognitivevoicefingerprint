@@ -37,7 +37,7 @@ DAILY SESSION ($0.25)
   WAV/WebM audio                           Conversation transcript
        |                                        |                |
   ffmpeg -> 16kHz WAV                      Deterministic NLP    Opus 4.6
-       |                                   Anchors (~20 regex)  Dual-Pass
+       |                                   Anchors (25 regex)   Dual-Pass
   Python V5 pipeline                            |                |
   +-- parselmouth (Praat)                  Topic Detection    Pass 1 (8K
   +-- torchaudio (GPU MFCCs)              6 genre profiles   thinking)
@@ -272,7 +272,7 @@ cognitivevoicefingerprint/
 │   │   ├── differential.js        # 35 rules, 11 conditions, LBD/FTD/VCI patterns, independent probabilities
 │   │   ├── acoustic-pipeline.js   # Node->Python GPU bridge, Whisper temporal
 │   │   ├── cross-validation.js    # LOO + split-half CV, Spearman-Brown
-│   │   ├── trajectory.js          # 10-condition 12-week prediction
+│   │   ├── trajectory.js          # 11-condition 12-week prediction
 │   │   ├── pd-engine.js           # PD detection, staging, UPDRS, subtypes
 │   │   ├── micro-tasks.js         # 6 clinical micro-tasks + scheduling
 │   │   ├── weekly-deep.js         # Opus 4.6 32K weekly deep analysis
@@ -452,15 +452,15 @@ See [SECURITY.md](SECURITY.md) for the full HIPAA-aligned security architecture 
 
 ## Contributing
 
-Contributions are welcome and valued. Here are ways to help:
+Contributions from researchers and developers are welcome and valued. See **[CONTRIBUTING.md](CONTRIBUTING.md)** for full guidelines, including:
 
-- **Research integration** -- Help add indicators from new papers or validate existing ones against published datasets
-- **Language support** -- Add word lists and detection patterns for additional languages
-- **Acoustic features** -- Implement new acoustic measures or optimize the GPU pipeline
-- **Clinical validation** -- If you have access to clinical datasets (DementiaBank, ADReSS, etc.), help validate detection accuracy
-- **Bug fixes and improvements** -- Standard pull requests for code quality, documentation, and test coverage
+- **For researchers** -- validate indicators against clinical datasets (DementiaBank, ADReSS, mPower, DAIC-WOZ), propose new indicators with peer-reviewed evidence, add research references
+- **For developers** -- add language support (word lists + regex for new languages), improve the acoustic pipeline, expand test coverage, harden the API
+- **Adding a new indicator** -- step-by-step guide with evidence requirements, effect sizes, domain assignment, and testing
+- **Adding a new condition** -- template based on the VCI addition in V5.2 (commit `77d46c4`)
+- **Adding a new language** -- complete checklist: NLP anchors, topic detection keywords, micro-task prompts
 
-Please open an issue first for significant changes. All contributions should maintain the evidence-compiled standard: every clinical indicator must trace to published peer-reviewed research.
+All contributions must maintain the evidence-compiled standard: every clinical indicator traces to published peer-reviewed research. Please open an issue first for significant changes.
 
 ---
 

@@ -4,7 +4,7 @@
  * Extended rule-based differential diagnosis compiled from 80+ studies.
  * No LLM inference needed — the decision tree IS the science.
  *
- * 33 rules across 10 conditions (V5.1: +3 age-normalization rules):
+ * 35 rules across 11 conditions (V5.1: +3 age-normalization, V5.2: +2 VCI):
  *   1. Alzheimer's Disease (cascade pattern)
  *   2. Major Depression (episodic, affective)
  *   3. Parkinson's Disease (motor-dominant)
@@ -15,6 +15,7 @@
  *   8. Progressive Supranuclear Palsy (PSP — PD-like with stuttering)
  *   9. Lewy Body Dementia (LBD — fluctuating cognition + parkinsonism)
  *  10. Frontotemporal Dementia (FTD — behavioral/semantic variants)
+ *  11. Vascular Cognitive Impairment (VCI — executive+speed, step-wise decline)
  *
  * V5 additions over V4:
  *   - 2 new conditions: LBD (Lewy Body Dementia), FTD (Frontotemporal Dementia)
