@@ -20,6 +20,7 @@
     "./weekly-deep": "./src/engine/weekly-deep.js"
   },
   "scripts": {
+    "test": "node --test tests/engine.test.js",
     "analyze": "node scripts/run_v5_analysis.mjs",
     "start": "node src/engine/api.js"
   },
