@@ -30,6 +30,10 @@ V5's codename, **deep_voice**, reflects its three architectural advances: deeper
 | **PD features** | 12 indicators | **12 + tremor_freq, voice_breaks, breathiness, loudness_decay** |
 | **Cascade types** | 3 (AD, PD, Depression) | **5** (+LBD, +FTD) |
 | **Sentinel sets** | 3 | **5** (+LBD, +FTD) |
+| **Differential rules** | 23 | **33** (+LBD, +FTD, +age-normalization) |
+| **Age stratification** | None | **4 age bands** (50-59, 60-69, 70-79, 80+) |
+| **Acoustic age offsets** | None | **17 indicators age-adjusted** |
+| **Acceleration detection** | None | **2nd derivative per domain** |
 | **Weekly cost/patient** | $0.80-1.00 | **~$2.10** |
 | **Code lines** | 5,956 | **~12,775** |
 
@@ -510,7 +514,85 @@ LEX_WORD_FREQ, SEM_IDEA_DENSITY, DIS_PERSEVERATION
 
 ---
 
-## Differential Diagnosis Engine: 30 Rules, 10 Conditions
+## New in V5.1: Age-Normalization Layer
+
+### The Problem
+
+The V5 engine scored everything against a personal baseline with no age stratification. This created a critical blind spot: **normal aging produces changes that mimic disease markers**. An 80-year-old's naturally breathier voice (lower HNR, higher jitter) could falsely trigger PD motor indicators. Gradual memory decline expected at age 75 could be flagged as early AD.
+
+### The Solution: 4-Layer Age-Illness Separation
+
+#### Layer 1: Age-Stratified Expected Decline Rates
+
+Normal aging rates are now stratified by decade (50-59, 60-69, 70-79, 80+), derived from:
+- **Salthouse 2004**: cognitive aging trajectories across decades
+- **Verhaegen 2003**: meta-analysis of aging and language production
+- **Xue & Hao 2003**: voice aging (F0, jitter, shimmer, HNR changes)
+- **Kemper 2001**: syntactic complexity decline with age
+
+| Domain | 50-59/year | 60-69/year | 70-79/year | 80+/year |
+|--------|-----------|-----------|-----------|---------|
+| Memory | -0.012 | -0.020 | -0.035 | -0.050 |
+| Lexical | -0.010 | -0.018 | -0.028 | -0.040 |
+| Acoustic | -0.008 | -0.015 | -0.025 | -0.035 |
+| PD Motor | -0.003 | -0.006 | -0.010 | -0.015 |
+| Semantic | -0.005 | -0.010 | -0.015 | -0.020 |
+
+**Key insight**: The **excess decline** (observed rate minus age-expected rate) is what triggers disease alerts — not the raw decline itself.
+
+#### Layer 2: Age-Adjusted Acoustic Offsets for PD Indicators
+
+17 acoustic and PD motor indicators receive age-based z-score offsets to compensate for natural voice aging:
+
+| Feature | 50-59 offset | 60-69 | 70-79 | 80+ | Aging source |
+|---------|-------------|-------|-------|-----|-------------|
+| Jitter | +0.05 | +0.12 | +0.22 | +0.35 | Xue & Hao 2003 |
+| HNR | +0.05 | +0.15 | +0.28 | +0.40 | Xue & Hao 2003 |
+| PPE | +0.03 | +0.08 | +0.15 | +0.25 | Little 2009 adjusted |
+| DDK Rate | +0.03 | +0.08 | +0.15 | +0.25 | Harel 2004 adjusted |
+
+Offsets are **added back** to z-scores (making them less negative), canceling the portion of decline attributable to normal voice aging.
+
+#### Layer 3: Acceleration Detection (2nd Derivative)
+
+**This is the single highest-ROI differentiator.** Normal aging produces LINEAR decline (constant rate). Disease produces ACCELERATING decline (rate gets steeper over time).
+
+```
+Normal aging: slope₁ ≈ slope₂  (constant)
+AD/PD/LBD:   slope₂ < slope₁  (accelerating)
+```
+
+The `computeDeclineProfile()` function now computes:
+- **acceleration**: per-domain change in velocity between first and second half of analysis window
+- **excess_decline**: per-domain decline beyond age-expected rate
+- **age_consistent**: boolean — true when decline is uniform AND within age-band norms
+
+#### Layer 4: Pattern Signature Enforcement (Differential Rules 31-33)
+
+Three new differential rules enforce age-disease separation:
+
+| Rule | Trigger | Impact |
+|------|---------|--------|
+| 31 | Uniform decline within age-expected range across all domains | +0.40 Normal Aging, -40% all disease scores |
+| 32 | Accelerating decline (2nd derivative) in 2+ domains | +0.15 to leading condition; -15% disease scores when NO acceleration |
+| 33 | Excess decline beyond age norms in specific domains | +0.20 Normal Aging when no excess; +0.05 per condition when excess detected |
+
+### Patient Age Propagation
+
+`patientAge` flows through the entire pipeline:
+```
+analyzeSession(patientAge)
+  → computeZScores(patientAge)     // acoustic offset application
+  → computeDeclineProfile(patientAge) // excess + acceleration
+  → runDifferential(context.patientAge) // Rules 31-33
+  → predictTrajectory(patientAge)  // age-stratified twin trajectory
+```
+
+When `patientAge` is `null` (unknown), the system falls back to default middle-estimate rates — no degradation in existing behavior.
+
+---
+
+## Differential Diagnosis Engine: 33 Rules, 10 Conditions
 
 ### Conditions Detected
 
@@ -564,6 +646,14 @@ LEX_WORD_FREQ, SEM_IDEA_DENSITY, DIS_PERSEVERATION
 | 28 | **Topic-adjusted dampening**: when topic genre explains indicator deviation, reduce condition scores | -0.05 to -0.15 per affected condition |
 | 29 | **Acoustic-linguistic fusion discrepancy**: acoustic normal but linguistic degraded (or vice versa) | +0.10 to condition matching the degraded stream |
 | 30 | **Confidence-weighted evidence**: indicators with confidence < 0.4 contribute at 50% weight | Scaled adjustment across all conditions |
+
+### New V5.1 Rules (31-33) — Age-Normalization
+
+| Rule | Trigger | Score Impact |
+|------|---------|-------------|
+| 31 | **Uniform age-consistent decline**: all domains decline at similar rates within age-band norms | +0.40 Normal Aging, -40% all disease scores |
+| 32 | **Acceleration requirement**: 2+ domains show accelerating decline (2nd derivative) | +0.15 to leading condition. No acceleration: +0.10 Normal Aging, -15% disease |
+| 33 | **Excess decline beyond age norms**: domain decline rate exceeds age-expected rate | +0.20 Normal Aging when no excess; +0.05 per condition for each domain with excess |
 
 ### Key Differential Markers (Expanded)
 

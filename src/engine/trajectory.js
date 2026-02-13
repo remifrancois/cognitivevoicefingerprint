@@ -10,6 +10,13 @@
  * 6. FTD progression model — pragmatic-led (behavioral), semantic-led (semantic variant)
  * 7. Cascade-aware domain-level forecasting
  * 8. Cognitive twin trajectory (pure aging, 11 domains)
+ * 9. Age-stratified normal aging rates (50-59, 60-69, 70-79, 80+)
+ *
+ * V5.1 addition: Age-band-aware decline rates prevent false disease flags
+ * from natural aging. Normal aging is UNIFORM across domains; disease is
+ * domain-ASYMMETRIC and ACCELERATING. Age stratification sharpens this
+ * distinction by adjusting expected decline rates per decade:
+ *   - Salthouse 2004, Verhaegen 2003 (cognitive), Xue & Hao 2003 (voice)
  *
  * Extends V4 with LBD and FTD condition-specific domain ordering:
  *   AD  — lexical/semantic lead, cascade-accelerated
@@ -25,10 +32,47 @@
 import { DOMAIN_WEIGHTS } from './indicators.js';
 
 // ════════════════════════════════════════════════════════
-// NORMAL AGING RATES (from meta-analyses, per week)
-// 11 domains — V5 adds pragmatic and executive
+// AGE-STRATIFIED NORMAL AGING RATES (per year, converted to per-week)
+//
+// Derived from normative meta-analyses:
+//   - Salthouse 2004: cognitive aging trajectories across decades
+//   - Verhaegen 2003: meta-analysis of aging and language production
+//   - Xue & Hao 2003: voice aging (F0, jitter, shimmer, HNR changes)
+//   - Kemper 2001: syntactic complexity decline with age
+//
+// Key insight: normal aging accelerates non-linearly. A 75-year-old
+// declines faster per year than a 55-year-old, but the pattern is
+// UNIFORM across domains (unlike disease, which is domain-asymmetric).
 // ════════════════════════════════════════════════════════
 
+export const AGE_BANDS = {
+  '50-59': {
+    lexical:   -0.010 / 52, memory:    -0.012 / 52, temporal:  -0.008 / 52,
+    semantic:  -0.005 / 52, syntactic: -0.005 / 52, acoustic:  -0.008 / 52,
+    pd_motor:  -0.003 / 52, discourse: -0.003 / 52, affective: -0.003 / 52,
+    pragmatic: -0.003 / 52, executive: -0.005 / 52,
+  },
+  '60-69': {
+    lexical:   -0.018 / 52, memory:    -0.020 / 52, temporal:  -0.015 / 52,
+    semantic:  -0.010 / 52, syntactic: -0.008 / 52, acoustic:  -0.015 / 52,
+    pd_motor:  -0.006 / 52, discourse: -0.005 / 52, affective: -0.005 / 52,
+    pragmatic: -0.005 / 52, executive: -0.008 / 52,
+  },
+  '70-79': {
+    lexical:   -0.028 / 52, memory:    -0.035 / 52, temporal:  -0.020 / 52,
+    semantic:  -0.015 / 52, syntactic: -0.012 / 52, acoustic:  -0.025 / 52,
+    pd_motor:  -0.010 / 52, discourse: -0.008 / 52, affective: -0.006 / 52,
+    pragmatic: -0.006 / 52, executive: -0.012 / 52,
+  },
+  '80+': {
+    lexical:   -0.040 / 52, memory:    -0.050 / 52, temporal:  -0.030 / 52,
+    semantic:  -0.020 / 52, syntactic: -0.018 / 52, acoustic:  -0.035 / 52,
+    pd_motor:  -0.015 / 52, discourse: -0.010 / 52, affective: -0.008 / 52,
+    pragmatic: -0.008 / 52, executive: -0.018 / 52,
+  },
+};
+
+/** Default rates (used when age is unknown — conservative middle estimate). */
 const WEEKLY_AGING_RATES = {
   lexical:    -0.02  / 52,
   syntactic:  -0.01  / 52,
@@ -39,9 +83,67 @@ const WEEKLY_AGING_RATES = {
   affective:  -0.005 / 52,
   acoustic:   -0.01  / 52,
   pd_motor:   -0.005 / 52,
-  pragmatic:  -0.005 / 52,   // NEW
-  executive:  -0.008 / 52,   // NEW
+  pragmatic:  -0.005 / 52,
+  executive:  -0.008 / 52,
 };
+
+/**
+ * Get the age band key for a given age.
+ * @param {number|null} age — patient age in years
+ * @returns {string|null} — age band key or null if unknown
+ */
+export function getAgeBand(age) {
+  if (age == null || !Number.isFinite(age)) return null;
+  if (age < 50) return '50-59'; // use youngest band for <50
+  if (age < 60) return '50-59';
+  if (age < 70) return '60-69';
+  if (age < 80) return '70-79';
+  return '80+';
+}
+
+/**
+ * Get age-adjusted weekly decline rate for a domain.
+ * Falls back to default WEEKLY_AGING_RATES if age is unknown.
+ *
+ * @param {string} domain — domain name
+ * @param {number|null} age — patient age in years
+ * @returns {number} — expected weekly decline rate (negative)
+ */
+export function getAgeAdjustedRate(domain, age) {
+  const band = getAgeBand(age);
+  if (band && AGE_BANDS[band]?.[domain] != null) {
+    return AGE_BANDS[band][domain];
+  }
+  return WEEKLY_AGING_RATES[domain] || -0.0003;
+}
+
+// ════════════════════════════════════════════════════════
+// EXCESS DECLINE — decline beyond age-expected baseline
+// ════════════════════════════════════════════════════════
+
+/**
+ * Compute per-domain excess decline: observed velocity minus age-expected rate.
+ * Positive excess = declining faster than age predicts = pathological signal.
+ *
+ * This is the core mechanism for separating disease from aging:
+ *   excess = |observed_rate| - |age_expected_rate|
+ *   If excess > 0, decline exceeds age norms → investigate disease.
+ *   If excess ≤ 0, decline is within age-expected range → likely normal aging.
+ *
+ * @param {Object} domainVelocities — per-domain observed velocity (from computeDeclineProfile)
+ * @param {number|null} patientAge — age in years
+ * @returns {Object} — { domain: excess_value } (positive = pathological excess)
+ */
+export function computeExcessDecline(domainVelocities, patientAge) {
+  const excess = {};
+  for (const [domain, velocity] of Object.entries(domainVelocities)) {
+    const expected = getAgeAdjustedRate(domain, patientAge);
+    // Both velocity and expected are negative. Excess = how much worse than expected.
+    // velocity = -0.05, expected = -0.02 → excess = 0.03 (declining 0.03 faster than expected)
+    excess[domain] = Math.round((Math.abs(velocity) - Math.abs(expected)) * 10000) / 10000;
+  }
+  return excess;
+}
 
 // ════════════════════════════════════════════════════════
 // CASCADE BOOST TABLES
@@ -242,7 +344,7 @@ function computeVelocity(history) {
  * Extended switch for: alzheimer, depression, parkinson, msa, psp,
  * lbd, ftd, medication, normal_aging, and default (unknown).
  */
-function predictWeek(weekOffset, currentComposite, currentDomains, velocity, condition, cascade) {
+function predictWeek(weekOffset, currentComposite, currentDomains, velocity, condition, cascade, patientAge = null) {
   let predictedComposite;
   const predictedDomains = {};
 
@@ -353,20 +455,20 @@ function predictWeek(weekOffset, currentComposite, currentDomains, velocity, con
     }
 
     case 'normal_aging': {
-      // Explicit normal aging model
+      // Explicit normal aging model — V5.1: uses age-stratified rates
       predictedComposite = currentComposite;
       for (const [domain, current] of Object.entries(currentDomains)) {
-        const agingRate = WEEKLY_AGING_RATES[domain] || -0.0003;
+        const agingRate = getAgeAdjustedRate(domain, patientAge);
         predictedDomains[domain] = (current ?? 0) + agingRate * weekOffset;
       }
       break;
     }
 
     default: {
-      // Unknown condition — fall back to very slow decline across 11 domains
+      // Unknown condition — fall back to age-adjusted slow decline across 11 domains
       predictedComposite = currentComposite;
       for (const [domain, current] of Object.entries(currentDomains)) {
-        const agingRate = WEEKLY_AGING_RATES[domain] || -0.0003;
+        const agingRate = getAgeAdjustedRate(domain, patientAge);
         predictedDomains[domain] = (current ?? 0) + agingRate * weekOffset;
       }
       break;
@@ -395,13 +497,14 @@ function predictWeek(weekOffset, currentComposite, currentDomains, velocity, con
 /**
  * Compute cognitive twin trajectory (pure aging model).
  * Extended to all 11 domains for V5.
+ * V5.1: uses age-stratified rates when patientAge is provided.
  */
-function computeTwinTrajectory(currentDomains, weeks) {
+function computeTwinTrajectory(currentDomains, weeks, patientAge = null) {
   const trajectory = [];
   for (let w = 1; w <= weeks; w++) {
     const twinDomains = {};
     for (const [domain, current] of Object.entries(currentDomains)) {
-      const rate = WEEKLY_AGING_RATES[domain] || -0.0003;
+      const rate = getAgeAdjustedRate(domain, patientAge);
       twinDomains[domain] = Math.round(((current ?? 0) + rate * w) * 1000) / 1000;
     }
     trajectory.push({
@@ -562,7 +665,7 @@ export function computeDeclineProfile(history) {
  * @param {Object} cascade — current cascade detection
  * @param {number} weeks — how many weeks to predict (default 12)
  */
-export function predictTrajectory(history, differential, cascade, weeks = 12) {
+export function predictTrajectory(history, differential, cascade, weeks = 12, patientAge = null) {
   if (history.length < 3) {
     return { predictions: [], confidence: 0, message: 'Insufficient data for prediction (need 3+ weeks)' };
   }
@@ -577,7 +680,7 @@ export function predictTrajectory(history, differential, cascade, weeks = 12) {
   // Build prediction based on condition-specific model
   const predictions = [];
   for (let w = 1; w <= weeks; w++) {
-    const prediction = predictWeek(w, currentComposite, currentDomains, velocity, primary, cascade);
+    const prediction = predictWeek(w, currentComposite, currentDomains, velocity, primary, cascade, patientAge);
     predictions.push(prediction);
   }
 
@@ -594,7 +697,7 @@ export function predictTrajectory(history, differential, cascade, weeks = 12) {
     model: primary,
     confidence: Math.round(trajectoryConfidence * 100) / 100,
     predicted_alert_12w: predictions[weeks - 1]?.alert_level || 'unknown',
-    twin_trajectory: computeTwinTrajectory(currentDomains, weeks),
+    twin_trajectory: computeTwinTrajectory(currentDomains, weeks, patientAge),
     decline_profile: declineProfile,
   };
 }
