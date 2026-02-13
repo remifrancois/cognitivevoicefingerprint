@@ -47,6 +47,12 @@ export const DETERMINISTIC_INDICATOR_IDS = [
   'LEX_GENERIC_SUB',
   'LEX_DEATH_WORDS',
   'LEX_RUMINATIVE',
+  // V5.2 new pragmatic/executive/discourse anchors
+  'PRA_DISCOURSE_MARKERS',
+  'EXE_PLANNING',
+  'PRA_NARRATIVE_STRUCTURE',
+  'PRA_INDIRECT_SPEECH',
+  'DIS_CIRCUMLOCUTION',
 ];
 
 // ---------------------------------------------------------------------------
@@ -555,6 +561,138 @@ const FR_RUMINATIVE_PATTERNS = [
 ];
 
 // ---------------------------------------------------------------------------
+// V5.2 Word lists — Discourse markers, planning, indirect speech, circumlocution
+// ---------------------------------------------------------------------------
+
+const EN_DISCOURSE_MARKERS = new Set([
+  'well', 'so', 'anyway', 'anyhow', 'besides',
+  'however', 'nevertheless', 'nonetheless',
+  'meanwhile', 'furthermore', 'moreover',
+  'actually', 'basically', 'essentially',
+  'honestly', 'frankly', 'obviously',
+  'apparently', 'presumably', 'supposedly',
+  'incidentally', 'interestingly',
+]);
+const EN_DISCOURSE_MARKER_PHRASES = [
+  'you know', 'i mean', 'you see', 'the thing is',
+  'as i said', 'in fact', 'of course', 'by the way',
+  'on the other hand', 'as a matter of fact',
+  'to be honest', 'to tell the truth',
+  'what i mean is', 'the point is',
+];
+
+const FR_DISCOURSE_MARKERS = new Set([
+  'bon', 'ben', 'bref', 'enfin', 'donc',
+  'alors', 'cependant', 'pourtant', 'néanmoins',
+  'toutefois', 'quand même', 'justement',
+  'effectivement', 'évidemment', 'franchement',
+  'honnêtement', 'apparemment',
+]);
+const FR_DISCOURSE_MARKER_PHRASES = [
+  'tu sais', 'vous savez', 'tu vois', 'vous voyez',
+  'je veux dire', 'en fait', 'bien sûr', 'au fait',
+  'd\'un autre côté', 'à vrai dire', 'pour ainsi dire',
+  'ce que je veux dire', 'le truc c\'est',
+];
+
+const EN_PLANNING_WORDS = new Set([
+  'because', 'therefore', 'consequently', 'hence',
+  'thus', 'accordingly', 'then', 'next',
+  'first', 'second', 'third', 'finally',
+  'subsequently', 'afterwards', 'meanwhile',
+]);
+const EN_PLANNING_PHRASES = [
+  'if then', 'so that', 'in order to', 'as a result',
+  'first of all', 'after that', 'and then',
+  'the reason is', 'that is why', 'which means',
+  'the next step', 'what we need to',
+  'before we', 'once we', 'as long as',
+];
+
+const FR_PLANNING_WORDS = new Set([
+  'parce que', 'donc', 'alors', 'ensuite', 'puis',
+  'premièrement', 'deuxièmement', 'troisièmement', 'finalement',
+  'conséquemment', 'ainsi', 'par conséquent',
+]);
+const FR_PLANNING_PHRASES = [
+  'si alors', 'pour que', 'afin de', 'en conséquence',
+  'tout d\'abord', 'après ça', 'et ensuite',
+  'la raison est', 'c\'est pourquoi', 'ce qui signifie',
+  'la prochaine étape', 'ce qu\'il faut',
+  'avant de', 'une fois que', 'tant que',
+];
+
+const EN_INDIRECT_PHRASES = [
+  'i was wondering', 'would you mind', 'could you possibly',
+  'i think maybe', 'it seems like', 'perhaps we could',
+  'i suppose', 'it might be', 'do you think',
+  'i was hoping', 'if you don\'t mind', 'sort of',
+  'kind of', 'in a way', 'more or less',
+  'i\'m not sure but', 'it could be that',
+  'i don\'t want to', 'it\'s just that',
+  'if it\'s not too much', 'i wouldn\'t say',
+];
+
+const FR_INDIRECT_PHRASES = [
+  'je me demandais', 'est-ce que vous pourriez',
+  'je pense que peut-être', 'il semble que', 'peut-être qu\'on pourrait',
+  'je suppose que', 'il se pourrait que', 'vous pensez que',
+  'j\'espérais que', 'si ça ne vous dérange pas',
+  'en quelque sorte', 'd\'une certaine manière', 'plus ou moins',
+  'je ne suis pas sûr mais', 'il se peut que',
+  'ce n\'est pas que', 'c\'est juste que',
+  'si ce n\'est pas trop demander',
+];
+
+const EN_CIRCUMLOCUTION_PHRASES = [
+  'the thing you use to', 'the place where you',
+  'you know the thing', 'what do you call it',
+  'the one that', 'it\'s like a', 'it\'s sort of',
+  'the thing for', 'that thing that',
+  'what\'s the word', 'how do you say',
+  'i can\'t think of the word', 'the thing with',
+  'you know what i mean', 'it\'s the one',
+  'it does the', 'the stuff that', 'the person who',
+];
+
+const FR_CIRCUMLOCUTION_PHRASES = [
+  'le truc pour', 'le machin qui', 'l\'endroit où on',
+  'tu sais le truc', 'comment on dit',
+  'celui qui', 'c\'est comme un', 'c\'est genre',
+  'le truc avec', 'ce machin qui',
+  'comment ça s\'appelle', 'je ne trouve pas le mot',
+  'le bidule pour', 'tu vois ce que je veux dire',
+  'c\'est le', 'ça fait le', 'la chose qui',
+];
+
+// Narrative structure detection patterns
+const EN_ORIENTATION_PATTERNS = [
+  /\b(?:once upon|one day|last (?:week|month|year|time)|when i was|there was|it was)\b/i,
+  /\b(?:a few (?:days|weeks|months) ago|i remember when|this happened)\b/i,
+];
+const EN_COMPLICATION_PATTERNS = [
+  /\b(?:but then|suddenly|unfortunately|however|all of a sudden|unexpectedly)\b/i,
+  /\b(?:the problem was|what happened was|it turned out|to my surprise)\b/i,
+];
+const EN_RESOLUTION_PATTERNS = [
+  /\b(?:in the end|finally|eventually|so that's|and that's how|it all worked out)\b/i,
+  /\b(?:the result was|we managed to|it was resolved|things got better)\b/i,
+];
+
+const FR_ORIENTATION_PATTERNS = [
+  /\b(?:il était une fois|un jour|la (?:semaine|année) dernière|quand j'étais|il y avait|c'était)\b/i,
+  /\b(?:il y a quelques (?:jours|semaines|mois)|je me souviens quand)\b/i,
+];
+const FR_COMPLICATION_PATTERNS = [
+  /\b(?:mais (?:alors|ensuite)|soudain|malheureusement|cependant|tout à coup)\b/i,
+  /\b(?:le problème (?:c'est|était)|ce qui s'est passé|il s'est avéré)\b/i,
+];
+const FR_RESOLUTION_PATTERNS = [
+  /\b(?:à la fin|finalement|en fin de compte|et c'est comme ça|ça s'est bien terminé)\b/i,
+  /\b(?:le résultat a été|on a réussi à|ça s'est résolu|les choses se sont améliorées)\b/i,
+];
+
+// ---------------------------------------------------------------------------
 // Core NLP utilities
 // ---------------------------------------------------------------------------
 
@@ -697,6 +835,16 @@ export function getWordLists(language) {
       deathWords: FR_DEATH_WORDS,
       genericWords: FR_GENERIC_WORDS,
       ruminativePatterns: FR_RUMINATIVE_PATTERNS,
+      // V5.2
+      discourseMarkers: FR_DISCOURSE_MARKERS,
+      discourseMarkerPhrases: FR_DISCOURSE_MARKER_PHRASES,
+      planningWords: FR_PLANNING_WORDS,
+      planningPhrases: FR_PLANNING_PHRASES,
+      indirectPhrases: FR_INDIRECT_PHRASES,
+      circumlocutionPhrases: FR_CIRCUMLOCUTION_PHRASES,
+      orientationPatterns: FR_ORIENTATION_PATTERNS,
+      complicationPatterns: FR_COMPLICATION_PATTERNS,
+      resolutionPatterns: FR_RESOLUTION_PATTERNS,
     };
   }
   return {
@@ -712,6 +860,16 @@ export function getWordLists(language) {
     deathWords: EN_DEATH_WORDS,
     genericWords: EN_GENERIC_WORDS,
     ruminativePatterns: EN_RUMINATIVE_PATTERNS,
+    // V5.2
+    discourseMarkers: EN_DISCOURSE_MARKERS,
+    discourseMarkerPhrases: EN_DISCOURSE_MARKER_PHRASES,
+    planningWords: EN_PLANNING_WORDS,
+    planningPhrases: EN_PLANNING_PHRASES,
+    indirectPhrases: EN_INDIRECT_PHRASES,
+    circumlocutionPhrases: EN_CIRCUMLOCUTION_PHRASES,
+    orientationPatterns: EN_ORIENTATION_PATTERNS,
+    complicationPatterns: EN_COMPLICATION_PATTERNS,
+    resolutionPatterns: EN_RESOLUTION_PATTERNS,
   };
 }
 
@@ -1227,6 +1385,92 @@ export function computeLexRuminative(rawText, sentences, lists) {
 }
 
 // ---------------------------------------------------------------------------
+// V5.2 Pragmatic / Executive / Discourse indicator computations
+// ---------------------------------------------------------------------------
+
+/**
+ * PRA_DISCOURSE_MARKERS — Discourse marker usage rate.
+ * Discourse markers (well, so, anyway, I mean, you know) / utterances.
+ * Lower usage may indicate pragmatic decline (AD, FTD).
+ */
+export function computePraDiscourseMarkers(tokens, rawText, sentences, lists) {
+  if (sentences.length === 0) return 0.5;
+  let markerCount = tokens.filter(w => lists.discourseMarkers.has(w)).length;
+  const lowerText = rawText.toLowerCase();
+  markerCount += countPhrases(lowerText, lists.discourseMarkerPhrases);
+  const rate = markerCount / sentences.length;
+  // Typical discourse marker rate: ~0.3-0.8 per sentence. Center at 0.5.
+  return clamp01(sigmoid(rate, 0.5, 3));
+}
+
+/**
+ * EXE_PLANNING — Planning construct usage rate.
+ * Planning words/phrases (if-then, because, therefore, first-then) / utterances.
+ * Reduced planning language reflects executive dysfunction (FTD, AD).
+ */
+export function computeExePlanning(tokens, rawText, sentences, lists) {
+  if (sentences.length === 0) return 0.5;
+  let planCount = tokens.filter(w => lists.planningWords.has(w)).length;
+  const lowerText = rawText.toLowerCase();
+  planCount += countPhrases(lowerText, lists.planningPhrases);
+  const rate = planCount / sentences.length;
+  // Typical planning construct rate: ~0.2-0.6 per sentence. Center at 0.3.
+  return clamp01(sigmoid(rate, 0.3, 4));
+}
+
+/**
+ * PRA_NARRATIVE_STRUCTURE — Narrative structure completeness.
+ * Heuristic: checks for presence of orientation, complication, and resolution
+ * components in the transcript. Score based on how many are present.
+ */
+export function computePraNarrativeStructure(rawText, lists) {
+  if (!rawText || rawText.length < 20) return 0.5;
+
+  let components = 0;
+  const hasOrientation = lists.orientationPatterns.some(p => { p.lastIndex = 0; return p.test(rawText); });
+  const hasComplication = lists.complicationPatterns.some(p => { p.lastIndex = 0; return p.test(rawText); });
+  const hasResolution = lists.resolutionPatterns.some(p => { p.lastIndex = 0; return p.test(rawText); });
+
+  if (hasOrientation) components++;
+  if (hasComplication) components++;
+  if (hasResolution) components++;
+
+  // 0 components = 0.2, 1 = 0.4, 2 = 0.65, 3 = 0.85
+  return clamp01(0.2 + components * 0.22);
+}
+
+/**
+ * PRA_INDIRECT_SPEECH — Indirect/hedged speech rate.
+ * Hedged and indirect phrases / total sentences.
+ * Lower indirect speech indicates bluntness/literalness (FTD behavioral).
+ */
+export function computePraIndirectSpeech(rawText, sentences, lists) {
+  if (sentences.length === 0) return 0.5;
+  const lowerText = rawText.toLowerCase();
+  const indirectCount = countPhrases(lowerText, lists.indirectPhrases);
+  const rate = indirectCount / sentences.length;
+  // Typical indirect speech rate: ~0.05-0.2 per sentence. Center at 0.1.
+  return clamp01(sigmoid(rate, 0.1, 12));
+}
+
+/**
+ * DIS_CIRCUMLOCUTION — Circumlocutory phrase rate.
+ * Circumlocutory phrases / content words.
+ * Higher circumlocution indicates word-finding difficulty (AD, FTD semantic).
+ * Inverted: higher rate -> lower score.
+ */
+export function computeDisCircumlocution(tokens, rawText, lists) {
+  if (tokens.length === 0) return 0.5;
+  const contentWords = tokens.filter(w => !lists.functionWords.has(w) && w.length > 2);
+  if (contentWords.length === 0) return 0.5;
+  const lowerText = rawText.toLowerCase();
+  const circumCount = countPhrases(lowerText, lists.circumlocutionPhrases);
+  const rate = circumCount / contentWords.length;
+  // Circumlocution is rare in healthy speech: ~0.001-0.01. Center at 0.005. Inverted.
+  return clamp01(invertedSigmoid(rate, 0.005, 300));
+}
+
+// ---------------------------------------------------------------------------
 // Main entry point
 // ---------------------------------------------------------------------------
 
@@ -1271,6 +1515,12 @@ export function computeDeterministicIndicators(transcript, language = 'en', opti
     LEX_GENERIC_SUB: computeLexGenericSub(tokens, lists),
     LEX_DEATH_WORDS: computeLexDeathWords(tokens, rawText, lists),
     LEX_RUMINATIVE: computeLexRuminative(rawText, sentences, lists),
+    // V5.2 pragmatic / executive / discourse anchors
+    PRA_DISCOURSE_MARKERS: computePraDiscourseMarkers(tokens, rawText, sentences, lists),
+    EXE_PLANNING: computeExePlanning(tokens, rawText, sentences, lists),
+    PRA_NARRATIVE_STRUCTURE: computePraNarrativeStructure(rawText, lists),
+    PRA_INDIRECT_SPEECH: computePraIndirectSpeech(rawText, sentences, lists),
+    DIS_CIRCUMLOCUTION: computeDisCircumlocution(tokens, rawText, lists),
   };
 }
 

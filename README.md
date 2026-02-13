@@ -1,10 +1,10 @@
 # Cognitive Voice Fingerprint (CVF)
 
-### 107 indicators | 11 domains | 10 conditions | 30 differential rules | 84+ studies
+### 107 indicators | 11 domains | 11 conditions | 35 differential rules | 84+ studies
 
 **"The voice remembers what the mind forgets."**
 
-The Cognitive Voice Fingerprint engine is the world's first open-source system that detects early signs of Alzheimer's disease, Parkinson's disease, major depression, Lewy Body Dementia, and Frontotemporal Dementia through voice analysis alone. Today, 55 million people live with Alzheimer's worldwide, and most are diagnosed years too late -- after irreversible neural damage has already occurred. Research shows that speech patterns change up to 7.6 years before clinical diagnosis (Eyigoz 2020). CVF captures these changes by extracting 107 linguistic, acoustic, and cognitive indicators from natural conversation, scoring them across 11 cognitive domains, and running a 30-rule differential diagnosis engine that distinguishes between 10 conditions. Built during the Cerebral Valley x Anthropic Hackathon (February 2026), this engine is open source because cognitive health monitoring should be accessible to everyone, everywhere.
+The Cognitive Voice Fingerprint engine is the world's first open-source system that detects early signs of Alzheimer's disease, Parkinson's disease, major depression, Lewy Body Dementia, and Frontotemporal Dementia through voice analysis alone. Today, 55 million people live with Alzheimer's worldwide, and most are diagnosed years too late -- after irreversible neural damage has already occurred. Research shows that speech patterns change up to 7.6 years before clinical diagnosis (Eyigoz 2020). CVF captures these changes by extracting 107 linguistic, acoustic, and cognitive indicators from natural conversation, scoring them across 11 cognitive domains, and running a 35-rule differential diagnosis engine that distinguishes between 11 conditions. Built during the Cerebral Valley x Anthropic Hackathon (February 2026), this engine is open source because cognitive health monitoring should be accessible to everyone, everywhere.
 
 ---
 
@@ -19,9 +19,10 @@ The Cognitive Voice Fingerprint engine is the world's first open-source system t
 | 5 | **Frontotemporal Dementia** (3 variants) | Pragmatic collapse, semantic dissolution, disinhibition, humor/irony loss | 9-indicator sentinel set, 3-stage cascade per variant |
 | 6 | **Multiple System Atrophy** | Hypokinetic-ataxic pattern, excessive F0 fluctuation, vocal tremor (4-7 Hz) | PD differential rule 17, tremor frequency analysis |
 | 7 | **Progressive Supranuclear Palsy** | Hypokinetic-spastic pattern, stuttering, severe articulatory decay | PD differential rule 18, DDK analysis |
-| 8 | **Normal Aging** | Stable baseline across all domains, expected age trajectories | Rule 9: all domains within noise |
-| 9 | **Medication Effects** | Acute onset, global pattern across domains, recovery expected | Rule 10: temporal onset analysis |
-| 10 | **Grief / Emotional Distress** | Event-linked changes, topic-dependent affective shift | Rule 11: topic-adjusted, life-event correlation |
+| 8 | **Vascular Cognitive Impairment** | Executive dysfunction, processing speed decline, preserved memory, step-wise drops | Rules 34-35: executive+speed+memory profile, acute drop pattern |
+| 9 | **Normal Aging** | Stable baseline across all domains, expected age trajectories | Rule 13: all domains within noise |
+| 10 | **Medication Effects** | Acute onset, global pattern across domains, recovery expected | Rule 11: temporal onset analysis |
+| 11 | **Grief / Emotional Distress** | Event-linked changes, topic-dependent affective shift | Rule 12: topic-adjusted, life-event correlation |
 
 ---
 
@@ -68,8 +69,8 @@ DAILY SESSION ($0.25)
     |            -> composite score                   |
     |                 -> alert level                  |
     |                                                |
-    |  5 cascade       30-rule diff.    5 sentinel   |
-    |  detectors       10 conditions    sets         |
+    |  5 cascade       35-rule diff.    5 sentinel   |
+    |  detectors       11 conditions    sets         |
     +-----------------------------------------------+
 
 WEEKLY DEEP ANALYSIS ($0.50-0.80)
@@ -107,7 +108,7 @@ When audio is unavailable, the acoustic (0.11) and PD motor (0.09) domain weight
 
 1. **Topic-Aware Scoring** -- 6 genre profiles (narrative_travel, procedural_recipe, hypothetical_wishes, daily_routine, emotional_personal, academic) eliminate the 44% false positive rate discovered in V4. A recipe conversation no longer triggers Alzheimer's alerts; a grief discussion no longer flags depression. Detection is deterministic (regex + keyword, no LLM, $0.00), and per-indicator z-score adjustments are scaled by detection confidence.
 
-2. **Deterministic NLP Anchors** -- 20 linguistic indicators are computed using pure regex and word-list matching, serving as ground-truth calibration for LLM extraction. When the Opus extraction agrees with the deterministic value (within 0.15), the merge is 0.6 Opus + 0.4 deterministic. When they disagree, the merge shifts to 0.3 Opus + 0.7 deterministic, and an anomaly is flagged. This reduces extraction variability by 40-50% and catches LLM hallucinations.
+2. **Deterministic NLP Anchors** -- 25 linguistic indicators are computed using pure regex and word-list matching (including 5 pragmatic/executive anchors added in V5.2), serving as ground-truth calibration for LLM extraction. When the Opus extraction agrees with the deterministic value (within 0.15), the merge is 0.6 Opus + 0.4 deterministic. When they disagree, the merge shifts to 0.3 Opus + 0.7 deterministic, and an anomaly is flagged. This reduces extraction variability by 40-50% and catches LLM hallucinations.
 
 3. **Dual-Pass Opus Extraction** -- Two Claude Opus 4.6 passes with Extended Thinking (8K + 4K budget). Pass 1 extracts all indicators. Outliers are detected against NLP anchors. Pass 2 re-extracts only the outlier indicators and their domain neighbors. Final merge: 0.6 Pass1 + 0.4 Pass2. Every indicator carries full uncertainty metadata (value, confidence, range, source).
 
@@ -116,6 +117,12 @@ When audio is unavailable, the acoustic (0.11) and PD motor (0.09) domain weight
 5. **Cross-Validation** -- Leave-one-out and split-half cross-validation fix the self-referential baseline problem where a patient's session appears in its own reference distribution. Spearman-Brown reliability estimation ensures measurement stability. Each session is scored against an independent baseline it did not contribute to.
 
 6. **Evidence-Compiled** -- Every one of the 107 indicators traces back to peer-reviewed research. The engine synthesizes findings from 84+ papers across 5 disease areas into a single coherent scoring system. No indicator exists without published clinical evidence for its diagnostic relevance.
+
+7. **Session Quality Scoring** (V5.2) -- Each session receives a quality score (0-1) based on indicator coverage, extraction confidence, audio availability, outlier ratio, and transcript length. Weekly analysis uses quality-weighted domain averaging so that higher-quality sessions contribute more to aggregate scores.
+
+8. **Independent Probabilities & Mixed Pathology** (V5.2) -- In addition to zero-sum probability distributions, the engine now provides sigmoid-mapped independent per-condition probabilities that can overlap, enabling detection of mixed pathology (e.g., concurrent AD + LBD, or AD + depression). A `mixed_pathology` flag is set when 2+ disease conditions exceed 0.3 independent probability.
+
+9. **Confidence Propagation** (V5.2) -- Indicator-level extraction confidence flows through the entire pipeline. Low-confidence indicators are dampened toward zero in z-score computation, weighted less in domain scoring, and produce wider confidence bands on the composite score.
 
 ---
 
@@ -233,12 +240,14 @@ const result = analyzeSession(features, baseline, confounders, history, genre);
 // result.cascade         -- detected cascade patterns (AD, PD, Depression, LBD, FTD)
 // result.sentinel_alerts -- triggered sentinel sets
 
-// 6. Run 30-rule differential diagnosis
+// 6. Run 35-rule differential diagnosis
 const diff = runDifferential(result.domain_scores, result.z_scores, context);
-// diff.probabilities     -- probability per condition (10 conditions)
+// diff.probabilities              -- zero-sum probability per condition (11 conditions)
+// diff.independent_probabilities  -- sigmoid-mapped overlapping scores (V5.2)
+// diff.mixed_pathology            -- true if 2+ disease conditions elevated
 // diff.primary_hypothesis
-// diff.evidence          -- per-condition evidence chains
-// diff.recommendation    -- clinical recommendations
+// diff.evidence                   -- per-condition evidence chains
+// diff.recommendation             -- clinical recommendations
 
 // 7. Cross-validate (fixes self-referential baseline)
 const cvResults = batchAnalyzeWithCrossValidation(allSessions);
@@ -257,10 +266,10 @@ cognitivevoicefingerprint/
 │   ├── engine/
 │   │   ├── indicators.js          # 107 indicators, 11 domains, task-specific norms
 │   │   ├── topic-profiles.js      # 6 genre profiles, deterministic detection
-│   │   ├── nlp-deterministic.js   # ~20 deterministic NLP anchors (EN + FR)
+│   │   ├── nlp-deterministic.js   # 25 deterministic NLP anchors (EN + FR)
 │   │   ├── text-extractor.js      # Opus 4.6 dual-pass extraction + anchor merge
-│   │   ├── algorithm.js           # 11-domain scoring, 5 cascades, topic adjustment
-│   │   ├── differential.js        # 30 rules, 10 conditions, LBD/FTD patterns
+│   │   ├── algorithm.js           # 11-domain scoring, 5 cascades, session quality, confidence propagation
+│   │   ├── differential.js        # 35 rules, 11 conditions, LBD/FTD/VCI patterns, independent probabilities
 │   │   ├── acoustic-pipeline.js   # Node->Python GPU bridge, Whisper temporal
 │   │   ├── cross-validation.js    # LOO + split-half CV, Spearman-Brown
 │   │   ├── trajectory.js          # 10-condition 12-week prediction
@@ -368,7 +377,7 @@ When deployed as a service, CVF exposes 17 REST endpoints under `/cvf/v5/`:
 | 3 | POST | `/weekly` | Weekly deep analysis (Opus 4.6, 32K thinking budget) |
 | 4 | GET | `/drift/:patientId` | Latest cognitive drift analysis |
 | 5 | GET | `/timeline/:patientId` | Full session timeline with topic-adjusted scores |
-| 6 | GET | `/differential/:patientId` | 10-condition, 30-rule differential diagnosis |
+| 6 | GET | `/differential/:patientId` | 11-condition, 35-rule differential diagnosis |
 | 7 | GET | `/trajectory/:patientId` | 12-week trajectory prediction |
 | 8 | GET | `/pd/:patientId` | PD-specific analysis (signature, subtype, staging, UPDRS) |
 | 9 | GET | `/micro-tasks/:patientId` | Scheduled micro-tasks for next session |
@@ -385,22 +394,24 @@ When deployed as a service, CVF exposes 17 REST endpoints under `/cvf/v5/`:
 
 ## Differential Diagnosis: How It Distinguishes Conditions
 
-The 30-rule differential engine is the core clinical reasoning layer. It uses a marker profile matrix to separate conditions that share overlapping symptoms:
+The 35-rule differential engine is the core clinical reasoning layer. It uses a marker profile matrix to separate conditions that share overlapping symptoms:
 
-| Marker | AD | Depression | PD | LBD | FTD-bv | FTD-sv |
-|--------|:--:|:---------:|:--:|:---:|:------:|:------:|
-| Referential coherence | Degrades | Preserved | Preserved | Fluctuating | Preserved | Preserved |
-| Cued recall | **Fails** | Responds | Responds | Partial | Responds | Responds |
-| Self-referential pronouns | Normal | **Elevated** | Normal | Normal | Normal | Normal |
-| MFCC-2 | Variable | **Degraded** | Variable | Variable | Normal | Normal |
-| PPE / RPDE / DFA | Normal | Normal | **Elevated** | Elevated | Normal | Normal |
-| Session variability | Low | **High** | Low | **Very high** | Low | Low |
-| Pragmatic language | Declining | Preserved | Preserved | Declining | **Collapsed** | Preserved |
-| Semantic fluency | Declining | Mild | Mild | Declining | Preserved | **Collapsed** |
-| Executive function | Declining | Preserved | Declining | Declining | **Collapsed** | Preserved |
-| Memory (early stage) | **Impaired** | Intact | Intact | Impaired | **Intact** | Intact |
+| Marker | AD | Depression | PD | LBD | FTD-bv | FTD-sv | VCI |
+|--------|:--:|:---------:|:--:|:---:|:------:|:------:|:---:|
+| Referential coherence | Degrades | Preserved | Preserved | Fluctuating | Preserved | Preserved | Preserved |
+| Cued recall | **Fails** | Responds | Responds | Partial | Responds | Responds | Responds |
+| Self-referential pronouns | Normal | **Elevated** | Normal | Normal | Normal | Normal | Normal |
+| MFCC-2 | Variable | **Degraded** | Variable | Variable | Normal | Normal | Normal |
+| PPE / RPDE / DFA | Normal | Normal | **Elevated** | Elevated | Normal | Normal | Normal |
+| Session variability | Low | **High** | Low | **Very high** | Low | Low | Low |
+| Pragmatic language | Declining | Preserved | Preserved | Declining | **Collapsed** | Preserved | Preserved |
+| Semantic fluency | Declining | Mild | Mild | Declining | Preserved | **Collapsed** | Mild |
+| Executive function | Declining | Preserved | Declining | Declining | **Collapsed** | Preserved | **Impaired** |
+| Processing speed | Declining | Slowed | Slowed | Declining | Normal | Normal | **Impaired** |
+| Memory (early stage) | **Impaired** | Intact | Intact | Impaired | **Intact** | Intact | **Intact** |
+| Decline pattern | Gradual | Episodic | Gradual | Fluctuating | Gradual | Gradual | **Step-wise** |
 
-These patterns encode decades of clinical knowledge. For example, the key differentiator between Alzheimer's and FTD behavioral variant is that FTD patients show pragmatic and executive collapse while memory remains intact early on -- the opposite of the AD pattern. LBD is distinguished from both AD (monotonic decline) and PD (stable cognition) by its pronounced session-to-session variability, measured through pause duration coefficient of variation from Whisper word timestamps.
+These patterns encode decades of clinical knowledge. For example, the key differentiator between Alzheimer's and FTD behavioral variant is that FTD patients show pragmatic and executive collapse while memory remains intact early on -- the opposite of the AD pattern. LBD is distinguished from both AD (monotonic decline) and PD (stable cognition) by its pronounced session-to-session variability, measured through pause duration coefficient of variation from Whisper word timestamps. VCI (V5.2) is identified by its characteristic executive dysfunction with processing speed decline but preserved episodic memory, combined with a step-wise decline pattern reflecting vascular events rather than the gradual decline of AD.
 
 ---
 
@@ -457,11 +468,11 @@ Please open an issue first for significant changes. All contributions should mai
 
 ```bibtex
 @software{cvf_v5_2026,
-  title     = {Cognitive Voice Fingerprint V5: Deep Voice Architecture},
+  title     = {Cognitive Voice Fingerprint V5.2: Deep Voice Architecture},
   author    = {Fran\c{c}ois, R\'{e}mi},
   year      = {2026},
   url       = {https://github.com/remifrancois/cognitivevoicefingerprint},
-  note      = {107 indicators, 11 domains, 10 conditions, 30 differential rules.
+  note      = {107 indicators, 11 domains, 11 conditions, 35 differential rules.
                Built at Cerebral Valley x Anthropic Hackathon, February 2026.}
 }
 ```
@@ -471,6 +482,14 @@ Please open an issue first for significant changes. All contributions should mai
 ## Disclaimer
 
 This software is a research tool and is **not a medical device**. It does not provide medical diagnoses. Results should be interpreted by qualified healthcare professionals and used as one data point alongside clinical evaluation, neuroimaging, and established diagnostic protocols. Do not make medical decisions based solely on this engine's output.
+
+---
+
+## Contact
+
+For questions, collaboration inquiries, clinical validation partnerships, or feedback:
+
+**contact@alzheimervoice.org**
 
 ---
 

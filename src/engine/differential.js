@@ -69,6 +69,7 @@ export function runDifferential(domainScores, zScores, context = {}) {
     psp: 0,
     lbd: 0,   // NEW in V5
     ftd: 0,   // NEW in V5
+    vci: 0,   // NEW in V5.2 — Vascular Cognitive Impairment
   };
 
   const evidence = {
@@ -82,6 +83,7 @@ export function runDifferential(domainScores, zScores, context = {}) {
     psp: [],
     lbd: [],  // NEW in V5
     ftd: [],  // NEW in V5
+    vci: [],  // NEW in V5.2
   };
 
   const flags = [];
@@ -584,7 +586,7 @@ export function runDifferential(domainScores, zScores, context = {}) {
       'Decline rate is uniform across all domains and within age-expected range — consistent with normal aging, not disease'
     );
     // Dampen all disease scores — uniform decline is strongly anti-disease
-    for (const condition of ['alzheimer', 'parkinson', 'lbd', 'ftd', 'msa', 'psp']) {
+    for (const condition of ['alzheimer', 'parkinson', 'lbd', 'ftd', 'msa', 'psp', 'vci']) {
       const reduction = scores[condition] * 0.4;
       if (Number.isFinite(reduction) && reduction > 0) {
         scores[condition] -= reduction;
@@ -655,7 +657,7 @@ export function runDifferential(domainScores, zScores, context = {}) {
         'No acceleration detected in any domain — linear decline consistent with normal aging'
       );
       // Mild dampening of disease scores when there's no acceleration
-      for (const condition of ['alzheimer', 'parkinson', 'lbd', 'ftd']) {
+      for (const condition of ['alzheimer', 'parkinson', 'lbd', 'ftd', 'vci']) {
         if (scores[condition] > 0.10) {
           scores[condition] *= 0.85;
         }
@@ -699,7 +701,53 @@ export function runDifferential(domainScores, zScores, context = {}) {
           scores.ftd += 0.05;
           evidence.ftd.push(excessStr);
         }
+        if (['executive', 'temporal'].includes(domain)) {
+          scores.vci += 0.05;
+          evidence.vci.push(excessStr);
+        }
       }
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //
+  //  V5.2 RULES 34-35 — VASCULAR COGNITIVE IMPAIRMENT (VCI)
+  //
+  //  VCI is characterized by executive dysfunction + processing speed
+  //  decline with relatively preserved episodic memory, and a step-wise
+  //  (rather than gradual) decline pattern.
+  //
+  // ════════════════════════════════════════════════════════════════
+
+  // ════════════════════════════════════════════════
+  // RULE 34: VCI — Executive + Processing Speed + Preserved Memory
+  // Executive dysfunction and temporal/fluency decline with relatively
+  // preserved episodic memory is the hallmark VCI pattern.
+  // ════════════════════════════════════════════════
+  const exeDomain = domainScores.executive ?? 0;
+  const tmpDomain = domainScores.temporal ?? 0;
+  const memDomain = domainScores.memory ?? 0;
+
+  if (exeDomain < -0.4 && tmpDomain < -0.3 && memDomain > -0.25) {
+    scores.vci += 0.25;
+    evidence.vci.push(
+      `Executive dysfunction (${exeDomain.toFixed(2)}) + processing speed decline (${tmpDomain.toFixed(2)}) with preserved memory (${memDomain.toFixed(2)}) — VCI pattern`
+    );
+  }
+
+  // ════════════════════════════════════════════════
+  // RULE 35: VCI — Step-wise Decline + Executive Impairment
+  // VCI shows acute drops (vascular events) then plateau, unlike AD's
+  // gradual decline. Check timeline for acute_drop pattern combined
+  // with executive impairment.
+  // ════════════════════════════════════════════════
+  if (context.timeline?.length >= 4) {
+    const pattern = detectTemporalPattern(context.timeline);
+    if (pattern.type === 'acute_drop' && exeDomain < -0.3) {
+      scores.vci += 0.20;
+      evidence.vci.push(
+        `Step-wise decline pattern (acute drop at position ${pattern.drop_at}) with executive impairment — VCI step-wise progression`
+      );
     }
   }
 
@@ -734,6 +782,28 @@ export function runDifferential(domainScores, zScores, context = {}) {
   // Confidence: how decisive is the distribution?
   const confidence = Math.min(sorted[0][1] / (sorted[1][1] || 0.01) * 0.3, 0.95);
 
+  // ════════════════════════════════════════════════
+  // V5.2: INDEPENDENT (NON-ZERO-SUM) PROBABILITIES
+  // Sigmoid-mapped per-condition 0-1 scores that can overlap.
+  // Unlike zero-sum probabilities, multiple conditions can be
+  // simultaneously elevated, enabling mixed pathology detection.
+  // ════════════════════════════════════════════════
+  const independentProbabilities = {};
+  const diseaseConditions = ['alzheimer', 'depression', 'parkinson', 'lbd', 'ftd', 'msa', 'psp', 'vci'];
+  for (const [condition, rawScore] of Object.entries(scores)) {
+    // Sigmoid: maps raw accumulated score to 0-1 independently per condition.
+    // Center at 0.25 (typical activation threshold), steepness 6.
+    independentProbabilities[condition] = Math.round(
+      (1 / (1 + Math.exp(-6 * (rawScore - 0.25)))) * 1000
+    ) / 1000;
+  }
+
+  // Detect mixed pathology: 2+ disease conditions above 0.3
+  const elevatedConditions = diseaseConditions.filter(
+    c => independentProbabilities[c] > 0.3
+  );
+  const mixedPathology = elevatedConditions.length >= 2;
+
   return {
     probabilities,
     primary_hypothesis: primary,
@@ -742,7 +812,11 @@ export function runDifferential(domainScores, zScores, context = {}) {
     evidence,
     flags,
     rules_fired: Object.values(evidence).flat().length,
-    recommendation: generateRecommendation(primary, secondary, confidence, evidence)
+    recommendation: generateRecommendation(primary, secondary, confidence, evidence),
+    // V5.2 independent probabilities
+    independent_probabilities: independentProbabilities,
+    mixed_pathology: mixedPathology,
+    elevated_conditions: elevatedConditions,
   };
 }
 
@@ -1073,6 +1147,13 @@ function generateRecommendation(primary, secondary, confidence, evidence) {
     }
     if (evidence.ftd?.some(e => e.includes('semantic'))) {
       recs.push('Semantic variant suspected — assess confrontation naming (Boston Naming Test) and word comprehension.');
+    }
+  } else if (primary === 'vci') {
+    recs.push('Executive dysfunction with preserved memory and step-wise decline suggests Vascular Cognitive Impairment (VCI).');
+    recs.push('Recommend brain MRI (white matter hyperintensities), vascular risk factor assessment, and neuropsychological battery.');
+    recs.push('Manage vascular risk factors (hypertension, diabetes, hyperlipidemia) to slow progression.');
+    if (secondary === 'alzheimer') {
+      recs.push('Mixed VCI+AD pathology is common — consider amyloid PET to evaluate AD co-pathology.');
     }
   }
 

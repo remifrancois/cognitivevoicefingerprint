@@ -2,7 +2,71 @@
 
 ## Technical Documentation
 
-MemoVoice CVF Engine V5 is a GPU-accelerated, dual-pass voice-based cognitive fingerprinting system that combines **acoustic signal processing**, **deterministic NLP anchoring**, and **LLM-powered linguistic analysis** with **topic-aware scoring** in a single evidence-compiled engine. Built from systematic analysis of **84+ research papers** across Alzheimer's, Depression, Parkinson's, Lewy Body Dementia, and Frontotemporal Dementia, V5 eliminates the 44% false positive rate discovered in V4's Profile01 analysis while expanding coverage to **107 indicators across 11 domains** and **10 detectable conditions**.
+MemoVoice CVF Engine V5 is a GPU-accelerated, dual-pass voice-based cognitive fingerprinting system that combines **acoustic signal processing**, **deterministic NLP anchoring**, and **LLM-powered linguistic analysis** with **topic-aware scoring** in a single evidence-compiled engine. Built from systematic analysis of **84+ research papers** across Alzheimer's, Depression, Parkinson's, Lewy Body Dementia, and Frontotemporal Dementia, V5 eliminates the 44% false positive rate discovered in V4's Profile01 analysis while expanding coverage to **107 indicators across 11 domains** and **11 detectable conditions**.
+
+---
+
+## V5.2 Engine Improvements
+
+### 1. Z-Score Direction Fix (Critical Bug)
+The z-score polarity computation now considers all 6 conditions via `effect_sizes` instead of only AD/depression/PD. Previously, indicators dominated by FTD or LBD (e.g., `EXE_INHIBITION` with FTD effect_size 0.9) had incorrect z-score polarity because the dominant direction was derived from a 3-condition ternary that ignored LBD/FTD. The fix replaces the ternary with a loop over all conditions, selecting the direction from whichever condition has the strongest expected effect size.
+
+**File:** `src/engine/algorithm.js`
+
+### 2. Deterministic Anchors for Pragmatic/Executive Indicators
+Five new deterministic NLP computations with EN+FR word lists:
+- `PRA_DISCOURSE_MARKERS` — discourse marker count / utterances
+- `EXE_PLANNING` — planning constructs (if-then, because, therefore) / utterances
+- `PRA_NARRATIVE_STRUCTURE` — heuristic: orientation + complication + resolution presence
+- `PRA_INDIRECT_SPEECH` — hedged/indirect phrases / sentences
+- `DIS_CIRCUMLOCUTION` — circumlocutory phrases / content words
+
+These bring the deterministic anchor count from 20 to 25, reducing LLM extraction variability for the pragmatic and executive domains.
+
+**File:** `src/engine/nlp-deterministic.js`
+
+### 3. Vascular Cognitive Impairment (VCI) as 11th Condition
+VCI detection added to the differential diagnosis engine with two new rules:
+- **Rule 34:** Executive dysfunction + processing speed decline + preserved memory
+- **Rule 35:** Step-wise decline pattern (acute drops then plateau) with executive impairment
+
+VCI is included in age-normalization dampening (Rules 31-33), excess decline domain mapping (executive/temporal domains), and the recommendation generator. Total detectable conditions: 11.
+
+**File:** `src/engine/differential.js`
+
+### 4. Independent (Non-Zero-Sum) Condition Probabilities
+New `independent_probabilities` field uses sigmoid-mapped per-condition 0-1 scores that can overlap (unlike zero-sum `probabilities`). Enables mixed pathology detection:
+- `independent_probabilities`: per-condition sigmoid score (0-1)
+- `mixed_pathology`: boolean flag when 2+ disease conditions exceed 0.3
+- `elevated_conditions`: array of conditions with elevated independent probability
+
+Existing `probabilities` field preserved for backward compatibility.
+
+**File:** `src/engine/differential.js`
+
+### 5. Confidence Propagation Through the Pipeline
+- `computeZScores`: accepts `indicatorConfidence`, dampens low-confidence indicators toward 0
+- `computeDomainScores`: weights indicators by confidence, computes per-domain confidence
+- `analyzeSession`: computes confidence bands on composite (lower/upper/mean_confidence), returns `domain_confidence`
+
+**File:** `src/engine/algorithm.js`
+
+### 6. Session Quality Scoring
+New `computeSessionQuality(sessionVector, zScores, baseline, indicatorConfidence)`:
+- Factors: indicator_coverage, extraction_confidence, audio_coverage, outlier_ratio, transcript_length
+- Returns `{ score: 0-1, level: 'high'|'medium'|'low'|'unusable', factors }`
+- Integrated into `analyzeSession` return and `analyzeWeek` (quality-weighted domain averaging)
+
+**File:** `src/engine/algorithm.js`
+
+### 7. Condition-Specific Sensitivity Tests
+9 new tests verifying differential accuracy:
+- AD, PD, Depression, FTD-bv, LBD, VCI, Normal aging profiles
+- Mixed AD+depression, Mixed AD+LBD (independent probabilities)
+- 3 session quality tests
+- Total test count: 70 (from 58)
+
+**File:** `tests/engine.test.js`
 
 V5's codename, **deep_voice**, reflects its three architectural advances: deeper extraction (Opus 4.6 dual-pass with Extended Thinking), deeper grounding (20 deterministic NLP anchors reduce LLM variability by 40-50%), and deeper audio analysis (GPU-accelerated pipeline with Whisper word-level timestamps producing 5 measured temporal indicators).
 

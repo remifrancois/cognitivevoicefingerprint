@@ -22,12 +22,13 @@ export {
   applyConfounders,
   checkSentinels,
   computeDeclineProfile,
+  computeSessionQuality,
   analyzeSession,
   analyzeWeek,
   ALERT_THRESHOLDS,
 } from './algorithm.js';
 
-// Differential diagnosis (30-rule engine, 10 conditions)
+// Differential diagnosis (35-rule engine, 11 conditions)
 export {
   runDifferential,
   detectTemporalPattern,
@@ -128,12 +129,12 @@ export {
  * V5 version info.
  */
 export const V5_META = {
-  version: '5.0.0',
+  version: '5.2.0',
   codename: 'deep_voice',
   indicator_count: 107,
   domains: 11,
-  conditions_detected: 10,
-  differential_rules: 30,
+  conditions_detected: 11,
+  differential_rules: 35,
   architecture: {
     daily_text: { model: 'claude-opus-4-6', cost: '$0.25/session', mode: 'dual-pass', indicators: 107 },
     daily_audio: { engine: 'GPU-accelerated parselmouth+librosa+nolds+Whisper', cost: '$0.00' },

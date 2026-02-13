@@ -14,7 +14,7 @@ import {
   computeV5Baseline, computeZScores, computeDomainScores,
   computeComposite, getAlertLevel, detectCascade,
   applyConfounders, checkSentinels, computeDeclineProfile,
-  analyzeSession, analyzeWeek
+  computeSessionQuality, analyzeSession, analyzeWeek
 } from '../src/engine/algorithm.js';
 
 import {
@@ -486,13 +486,13 @@ describe('Decline Profile V5.1', () => {
 // ════════════════════════════════════════════════
 
 describe('Differential Diagnosis', () => {
-  it('should return 10 conditions in probabilities', () => {
+  it('should return 11 conditions in probabilities', () => {
     const domainScores = {};
     for (const d of Object.keys(DOMAINS)) domainScores[d] = 0;
     const z = {};
     for (const id of ALL_INDICATOR_IDS) z[id] = 0;
     const result = runDifferential(domainScores, z, {});
-    assert.equal(Object.keys(result.probabilities).length, 10);
+    assert.equal(Object.keys(result.probabilities).length, 11);
   });
 
   it('should favor normal_aging for stable scores', () => {
@@ -802,7 +802,7 @@ describe('Disease vs Aging Separation', () => {
     );
   });
 
-  it('asymmetric accelerating decline should favor disease over normal_aging', () => {
+  it('asymmetric accelerating decline should favor disease over normal aging', () => {
     // Simulate semantic-led accelerating decline (AD pattern)
     const domainScores = {
       semantic: -0.8, lexical: -0.6, syntactic: -0.3, temporal: -0.2,
@@ -840,5 +840,203 @@ describe('Disease vs Aging Separation', () => {
       result.probabilities.alzheimer > result.probabilities.normal_aging,
       `Asymmetric accelerating decline: AD (${result.probabilities.alzheimer}) should beat normal_aging (${result.probabilities.normal_aging})`
     );
+  });
+});
+
+// ════════════════════════════════════════════════
+// V5.2 CONDITION-SPECIFIC SENSITIVITY TESTS
+// ════════════════════════════════════════════════
+
+describe('Condition-Specific Sensitivity', () => {
+  /** Helper: build domain scores + z-scores for a condition profile, run differential. */
+  function runProfile(domainOverrides, zOverrides, context = {}) {
+    const domainScores = {
+      semantic: 0, lexical: 0, syntactic: 0, temporal: 0, memory: 0,
+      acoustic: 0, pd_motor: 0, discourse: 0, affective: 0, pragmatic: 0, executive: 0,
+      ...domainOverrides,
+    };
+    const z = {};
+    for (const id of ALL_INDICATOR_IDS) z[id] = 0;
+    Object.assign(z, zOverrides);
+    return runDifferential(domainScores, z, context);
+  }
+
+  it('AD profile → alzheimer primary', () => {
+    const result = runProfile(
+      { semantic: -0.9, lexical: -0.8, syntactic: -0.6, memory: -0.7, temporal: -0.4 },
+      {
+        SEM_IDEA_DENSITY: -1.0, SEM_REF_COHERENCE: -0.9,
+        MEM_FREE_RECALL: -0.8, MEM_CUED_RECALL: -0.8,
+        DIS_SELF_CORRECTION: -0.7, TMP_WITHIN_CLAUSE: -0.6,
+        LEX_PRONOUN_NOUN: -0.6,
+      }
+    );
+    assert.equal(result.primary_hypothesis, 'alzheimer',
+      `Expected alzheimer, got ${result.primary_hypothesis} (probs: ${JSON.stringify(result.probabilities)})`);
+  });
+
+  it('PD profile → parkinson primary', () => {
+    const result = runProfile(
+      { acoustic: -0.9, pd_motor: -0.8, temporal: -0.6 },
+      {
+        PDM_PPE: -0.9, PDM_RPDE: -0.8, PDM_DFA: -0.7, ACU_HNR: -0.9,
+        ACU_F0_SD: -0.7, PDM_MONOPITCH: -0.8, PDM_DDK_RATE: -0.6,
+      }
+    );
+    assert.equal(result.primary_hypothesis, 'parkinson',
+      `Expected parkinson, got ${result.primary_hypothesis}`);
+  });
+
+  it('Depression profile → depression primary', () => {
+    const result = runProfile(
+      { affective: -0.8, temporal: -0.5, lexical: -0.3 },
+      {
+        AFF_SELF_PRONOUN: -0.8, AFF_NEG_VALENCE: -0.7,
+        AFF_HEDONIC: -0.6, AFF_ENGAGEMENT: -0.5,
+        TMP_RESPONSE_LATENCY: -0.7,
+        MEM_FREE_RECALL: -0.4, MEM_CUED_RECALL: -0.1, // Cued recall responsive
+        ACU_MFCC2: -0.6, ACU_SPECTRAL_HARM: -0.6,
+        LEX_DEATH_WORDS: -0.5, LEX_RUMINATIVE: -0.5,
+      }
+    );
+    assert.equal(result.primary_hypothesis, 'depression',
+      `Expected depression, got ${result.primary_hypothesis}`);
+  });
+
+  it('FTD-bv profile → ftd primary', () => {
+    const result = runProfile(
+      { pragmatic: -0.9, executive: -0.7, memory: 0.1, syntactic: 0 },
+      {
+        PRA_INDIRECT_SPEECH: -1.0, PRA_HUMOR_IRONY: -0.9,
+        PRA_DISCOURSE_MARKERS: -0.8, PRA_REGISTER_SHIFT: -0.8,
+        PRA_NARRATIVE_STRUCTURE: -0.7, PRA_PERSPECTIVE_TAKING: -0.8,
+        EXE_INHIBITION: -0.9, EXE_TASK_SWITCHING: -0.7,
+        EXE_PLANNING: -0.6, EXE_COGNITIVE_FLEXIBILITY: -0.7,
+        LEX_WORD_FREQ: -0.9,
+      }
+    );
+    assert.equal(result.primary_hypothesis, 'ftd',
+      `Expected ftd, got ${result.primary_hypothesis}`);
+  });
+
+  it('LBD profile → lbd primary', () => {
+    const result = runProfile(
+      { pd_motor: -0.6, acoustic: -0.5, semantic: -0.5, memory: -0.5, executive: -0.4 },
+      {
+        TMP_VARIABILITY: -1.2, // extreme fluctuation
+        PDM_PPE: -0.6, ACU_HNR: -0.5, ACU_F0_SD: -0.5,
+        MEM_FREE_RECALL: -0.5, EXE_TASK_SWITCHING: -0.5,
+      }
+    );
+    assert.equal(result.primary_hypothesis, 'lbd',
+      `Expected lbd, got ${result.primary_hypothesis}`);
+  });
+
+  it('VCI profile → vci primary', () => {
+    const result = runProfile(
+      { executive: -0.7, temporal: -0.5, memory: -0.1 },
+      {
+        EXE_TASK_SWITCHING: -0.7, EXE_PLANNING: -0.6,
+        EXE_COGNITIVE_FLEXIBILITY: -0.6, EXE_DUAL_TASK: -0.5,
+        TMP_SPEECH_RATE: -0.5, TMP_RESPONSE_LATENCY: -0.4,
+      },
+      {
+        timeline: [
+          { composite: 0 }, { composite: 0 }, { composite: 0 },
+          { composite: -0.6 }, { composite: -0.55 }, { composite: -0.5 }, { composite: -0.5 },
+        ],
+      }
+    );
+    assert.equal(result.primary_hypothesis, 'vci',
+      `Expected vci, got ${result.primary_hypothesis}`);
+  });
+
+  it('Normal aging profile → normal_aging primary', () => {
+    const result = runProfile(
+      { semantic: -0.1, lexical: -0.1, syntactic: 0, temporal: -0.1, memory: -0.1,
+        acoustic: -0.1, pd_motor: 0, discourse: 0, affective: 0, pragmatic: 0, executive: 0 },
+      {},
+      {
+        patientAge: 78,
+        declineProfile: { age_consistent: true, acceleration: null, excess_decline: null },
+      }
+    );
+    assert.equal(result.primary_hypothesis, 'normal_aging',
+      `Expected normal_aging, got ${result.primary_hypothesis}`);
+  });
+
+  it('Mixed AD+depression → both elevated in independent_probabilities', () => {
+    const result = runProfile(
+      { semantic: -0.7, lexical: -0.6, syntactic: -0.4, memory: -0.5, affective: -0.6, temporal: -0.4 },
+      {
+        SEM_IDEA_DENSITY: -0.7, SEM_REF_COHERENCE: -0.6,
+        MEM_FREE_RECALL: -0.6, MEM_CUED_RECALL: -0.6,
+        AFF_SELF_PRONOUN: -0.6, AFF_NEG_VALENCE: -0.6,
+        AFF_HEDONIC: -0.5, TMP_RESPONSE_LATENCY: -0.5,
+        ACU_MFCC2: -0.5, ACU_SPECTRAL_HARM: -0.5,
+      }
+    );
+    assert.ok(result.independent_probabilities, 'Should have independent_probabilities');
+    assert.ok(result.independent_probabilities.alzheimer > 0.3,
+      `AD independent prob (${result.independent_probabilities.alzheimer}) should be > 0.3`);
+    assert.ok(result.independent_probabilities.depression > 0.3,
+      `Depression independent prob (${result.independent_probabilities.depression}) should be > 0.3`);
+  });
+
+  it('Mixed AD+LBD → both elevated in independent_probabilities', () => {
+    const result = runProfile(
+      { semantic: -0.7, memory: -0.6, pd_motor: -0.5, acoustic: -0.4, executive: -0.4 },
+      {
+        SEM_IDEA_DENSITY: -0.8, SEM_REF_COHERENCE: -0.7,
+        MEM_FREE_RECALL: -0.7, MEM_CUED_RECALL: -0.6,
+        TMP_VARIABILITY: -0.9,
+        PDM_PPE: -0.5, ACU_HNR: -0.5,
+      }
+    );
+    assert.ok(result.independent_probabilities, 'Should have independent_probabilities');
+    assert.ok(result.independent_probabilities.alzheimer > 0.3,
+      `AD independent prob (${result.independent_probabilities.alzheimer}) should be > 0.3`);
+    assert.ok(result.independent_probabilities.lbd > 0.3,
+      `LBD independent prob (${result.independent_probabilities.lbd}) should be > 0.3`);
+    assert.ok(result.mixed_pathology, 'Should detect mixed pathology');
+  });
+});
+
+// ════════════════════════════════════════════════
+// V5.2 SESSION QUALITY SCORING
+// ════════════════════════════════════════════════
+
+describe('Session Quality', () => {
+  it('should compute quality for a normal session', () => {
+    const vec = buildSessionVector({}, 0.5);
+    const baseline = buildHealthyBaseline();
+    const z = computeZScores(vec, baseline);
+    const quality = computeSessionQuality(vec, z, baseline);
+    assert.ok(quality.score > 0);
+    assert.ok(quality.score <= 1);
+    assert.ok(['high', 'medium', 'low', 'unusable'].includes(quality.level));
+    assert.ok(quality.factors);
+  });
+
+  it('should give high quality for full coverage', () => {
+    const vec = buildSessionVector({}, 0.5);
+    const baseline = buildHealthyBaseline();
+    const z = computeZScores(vec, baseline);
+    const quality = computeSessionQuality(vec, z, baseline);
+    assert.ok(quality.score >= 0.5, `Full coverage should yield quality >= 0.5, got ${quality.score}`);
+  });
+
+  it('should give lower quality for sparse sessions', () => {
+    const vec = {};
+    // Only set a few indicators
+    for (const id of ALL_INDICATOR_IDS.slice(0, 10)) vec[id] = 0.5;
+    const baseline = buildHealthyBaseline();
+    const z = computeZScores(vec, baseline);
+    const fullVec = buildSessionVector({}, 0.5);
+    const fullZ = computeZScores(fullVec, baseline);
+    const sparseQuality = computeSessionQuality(vec, z, baseline);
+    const fullQuality = computeSessionQuality(fullVec, fullZ, baseline);
+    assert.ok(sparseQuality.score < fullQuality.score,
+      `Sparse (${sparseQuality.score}) should be < full (${fullQuality.score})`);
   });
 });
