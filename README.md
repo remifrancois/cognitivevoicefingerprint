@@ -119,6 +119,30 @@ When audio is unavailable, the acoustic (0.11) and PD motor (0.09) domain weight
 
 ---
 
+## Demo Output
+
+A complete end-to-end analysis of a real voice profile (Profile01: 9 sessions, ~38 minutes of French speech) is included in `demo-output/`:
+
+- **`profile01_v5_results.json`** -- Full 197KB diagnostic JSON with per-session scores, cross-validation, differential diagnosis, trajectory prediction, and acoustic signatures
+- **`profile01_v5_console.txt`** -- 14-step console output from the analysis pipeline
+
+**Profile01 result summary:**
+
+```
+Aggregate composite:        0.005  (GREEN)
+Cross-validated composite: -0.112  (GREEN)
+Split-half reliability:     0.922
+Primary diagnosis:          Normal aging (69.2%)
+Secondary:                  Depression (30.8%)
+LBD / FTD / PD:            Not detected
+Sessions analyzed:          9 (70 indicators each: 52 text + 18 acoustic + 20 NLP anchors)
+Topic genres detected:      daily_routine (4), hypothetical_wishes (3), emotional_personal (1), procedural_recipe (1)
+```
+
+No audio recordings or raw transcripts are included in the demo output -- only the engine's computed results.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -218,8 +242,9 @@ const diff = runDifferential(result.domain_scores, result.z_scores, context);
 
 // 7. Cross-validate (fixes self-referential baseline)
 const cvResults = batchAnalyzeWithCrossValidation(allSessions);
-// cvResults.mean_composite  -- LOO-CV composite
-// cvResults.stability       -- measurement reliability
+// cvResults.aggregate.mean_composite  -- LOO-CV composite
+// cvResults.aggregate.consistency     -- measurement reliability
+// cvResults.results                   -- per-session LOO scores
 ```
 
 ---
@@ -247,7 +272,10 @@ cognitivevoicefingerprint/
 │   └── audio/
 │       └── extract_features_v5.py # GPU Python pipeline (parselmouth + torchaudio + nolds + Whisper)
 ├── scripts/
-│   └── run_v5_analysis.mjs        # Standalone console runner
+│   └── run_v5_analysis.mjs        # Standalone console runner (14-step pipeline)
+├── demo-output/
+│   ├── profile01_v5_results.json  # Full diagnostic JSON (197KB)
+│   └── profile01_v5_console.txt   # Console output from end-to-end run
 ├── docs/
 │   ├── CVF-V5-ARCHITECTURE.md     # Complete V5 technical reference
 │   ├── RESEARCH.md                # Scientific knowledge base
@@ -259,6 +287,7 @@ cognitivevoicefingerprint/
 │       ├── alzheimer/             # 39 papers (Fraser 2015, Snowdon 1996, Eyigoz 2020, ...)
 │       ├── parkinson/             # 26 papers (Little 2009, Tsanas 2012, Rusz 2021, ...)
 │       └── depression/            # 15+ papers (Le 2026, Grimm 2026, Yamamoto 2020, ...)
+├── CHANGELOG.md
 └── README.md
 ```
 
