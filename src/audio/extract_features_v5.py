@@ -1019,8 +1019,10 @@ def main():
         "--gpu", action="store_true", default=False,
         help="Prefer GPU acceleration (MPS/CUDA) when available",
     )
+    ALLOWED_WHISPER_MODELS = {"tiny", "base", "small", "medium", "large", "large-v2", "large-v3"}
     parser.add_argument(
         "--whisper-model", default="large-v3",
+        choices=sorted(ALLOWED_WHISPER_MODELS),
         help="Whisper model name (default: large-v3)",
     )
     parser.add_argument(
@@ -1035,6 +1037,24 @@ def main():
         print(json.dumps({
             "status": "error",
             "error": "Audio file not found",
+            "features": None,
+        }))
+        sys.exit(1)
+
+    # --- Audio file size limit (500MB max) ---
+    MAX_AUDIO_SIZE = 500 * 1024 * 1024
+    file_size = os.path.getsize(audio_path)
+    if file_size > MAX_AUDIO_SIZE:
+        print(json.dumps({
+            "status": "error",
+            "error": f"Audio file too large ({file_size} bytes, max {MAX_AUDIO_SIZE})",
+            "features": None,
+        }))
+        sys.exit(1)
+    if file_size == 0:
+        print(json.dumps({
+            "status": "error",
+            "error": "Audio file is empty",
             "features": None,
         }))
         sys.exit(1)

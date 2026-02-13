@@ -359,8 +359,11 @@ export async function extractAcousticFeatures(audioBuffer, {
     // Invoke Python extraction script (V5 may take longer with Whisper — 120s timeout)
     const { stdout } = await execFileAsync('python3', args, { timeout: 120_000 });
 
-    // Parse Python output
-    const result = JSON.parse(stdout.trim());
+    // Parse Python output with prototype pollution protection
+    const result = JSON.parse(stdout.trim(), (key, value) => {
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') return undefined;
+      return value;
+    });
 
     if (result.status !== 'ok' || !result.features) {
       console.warn(
@@ -502,7 +505,10 @@ export async function extractMicroTaskAudio(audioBuffer, taskType, {
  * @param {string[]} tempFiles — Array of absolute paths to remove.
  */
 export async function cleanup(tempFiles) {
+  const tmpDir = os.tmpdir();
   await Promise.allSettled(
-    tempFiles.map(f => fs.unlink(f).catch(() => {}))
+    tempFiles
+      .filter(f => path.resolve(f).startsWith(path.resolve(tmpDir)))
+      .map(f => fs.unlink(f).catch(() => {}))
   );
 }

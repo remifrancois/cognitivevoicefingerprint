@@ -6,6 +6,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This pr
 
 ---
 
+## [5.0.2] - 2026-02-13
+
+### Security Hardening
+- **API input validation** -- All 17 endpoints now enforce strict `patientId` schema (alphanumeric, 1-64 chars) via `PATIENT_ID_SCHEMA`. GET endpoints gained `required` + `pattern` validation where they previously accepted any string. `weekNumber` bounded to [1, 104].
+- **Prototype pollution protection** -- `JSON.parse()` in acoustic-pipeline.js and text-extractor.js now uses a reviver that rejects `__proto__`, `constructor`, and `prototype` keys from Python stdout and LLM output.
+- **NaN/Infinity propagation defense** -- `computeComposite()` now filters non-finite domain scores before aggregation and bounds the weight redistribution factor to 2.0. `linearSlope()` validates all inputs and bounds results to [-0.5, 0.5]. `checkSentinels()` rejects extreme z-scores (|z| > 5).
+- **Confounder whitelist** -- `applyConfounders()` now only accepts known confounder keys from `CONFOUNDER_WEIGHTS`. Domain adjustment multipliers bounded to [0.1, 10], global weight bounded to [0.1, 1.0].
+- **ReDoS mitigation** -- French ruminative regex patterns replaced `.{0,5}` and `.{0,10}` wildcards with non-backtracking `\S{0,20}` patterns. Capturing groups converted to non-capturing `(?:...)`.
+- **Memory exhaustion defense** -- `computeDisPerseveration()` limits token input to 10,000. `audioBase64` capped at 10MB on all endpoints. `confounders` object limited to 10 properties. `microTaskResults` limited to 10 properties with numeric values.
+- **Whisper model allowlist** -- `extract_features_v5.py` restricts `--whisper-model` to known models (tiny, base, small, medium, large, large-v2, large-v3). Rejects arbitrary model names that could trigger malicious model loading.
+- **Audio file size limit** -- Python pipeline rejects audio files > 500MB and empty files before processing.
+- **Path traversal protection** -- `cleanup()` validates temp file paths are within `os.tmpdir()` before deletion.
+- **LLM output validation** -- Text extractor validates response structure (indicators object must exist), whitelists genre values, bounds genre_confidence to [0, 1], detects all-zero/all-one anomaly patterns.
+- **Error sanitization** -- Global Fastify error handler returns generic messages for 500 errors in production, preventing internal details from leaking to clients.
+- **Resource limits** -- `MAX_PATIENTS` reduced from 10,000 to 1,000. `MAX_SESSIONS_PER_PATIENT` reduced from 1,000 to 500.
+
+---
+
 ## [5.0.1] - 2026-02-13
 
 ### Fixed

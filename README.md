@@ -404,6 +404,41 @@ These patterns encode decades of clinical knowledge. For example, the key differ
 
 ---
 
+## Security
+
+CVF processes cognitive health data — potential Protected Health Information (PHI). The engine implements defense-in-depth at every layer:
+
+### API Input Validation
+- All 17 endpoints enforce strict `patientId` schema (alphanumeric, 1-64 chars)
+- `audioBase64` capped at 10MB, `confounders` limited to 10 properties
+- `weekNumber` bounded to [1, 104], audio format and language restricted to known enums
+- Global error handler sanitizes 500 responses in production (no internal details leaked)
+
+### Injection & Pollution Defense
+- **Prototype pollution protection** — All `JSON.parse()` calls on external data (Python stdout, LLM output) use a reviver that rejects `__proto__`, `constructor`, and `prototype` keys
+- **LLM output validation** — Extracted features are validated for structure (indicators object must exist), genre values are whitelisted, confidence bounded to [0, 1], and all-zero/all-one anomaly patterns are detected and rejected (prompt injection defense)
+- **ReDoS mitigation** — French NLP regex patterns use non-backtracking `\S{0,20}` instead of `.{0,N}` wildcards; all capturing groups converted to non-capturing `(?:...)`
+
+### Numeric Safety (Medical Scoring)
+- `computeComposite()` filters NaN/Infinity before aggregation, bounds weight redistribution to 2.0x
+- `linearSlope()` validates all inputs and bounds results to [-0.5, 0.5]
+- `checkSentinels()` rejects non-finite z-scores and extreme values (|z| > 5)
+- `applyConfounders()` only accepts known confounder keys, bounds multipliers to [0.1, 10]
+
+### Audio Pipeline Safety
+- **Whisper model allowlist** — Only known models (tiny, base, small, medium, large, large-v2, large-v3) accepted; arbitrary model names rejected
+- **File size limits** — Audio files > 500MB and empty files rejected before processing
+- **Path traversal protection** — `cleanup()` validates temp file paths are within `os.tmpdir()` before deletion
+- **Memory exhaustion defense** — Token inputs capped at 10,000; `microTaskResults` limited to 10 numeric properties
+
+### Resource Limits
+- Maximum 1,000 patients, 500 sessions per patient
+- All numeric inputs validated at system boundaries
+
+See [SECURITY.md](SECURITY.md) for the full HIPAA-aligned security architecture including JWT authentication, RBAC, AES-256-GCM encryption at rest, and audit logging.
+
+---
+
 ## Contributing
 
 Contributions are welcome and valued. Here are ways to help:

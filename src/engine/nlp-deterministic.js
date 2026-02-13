@@ -535,23 +535,23 @@ const EN_RUMINATIVE_PATTERNS = [
 ];
 
 const FR_RUMINATIVE_PATTERNS = [
-  /\bje .{0,5}toujours\b/gi,
-  /\bje .{0,5}jamais\b/gi,
+  /\bje\s+\S{0,20}\s*toujours\b/gi,
+  /\bje\s+\S{0,20}\s*jamais\b/gi,
   /\bpourquoi moi\b/gi,
-  /\bpourquoi (est-ce que )?je\b/gi,
-  /\bc'est (de )?ma faute\b/gi,
-  /\bj'aurais (dû|pu)\b/gi,
-  /\bje n'aurais pas (dû|pu)\b/gi,
-  /\bsi seulement (je|j')\b/gi,
-  /\bje (n'arrête|arrête) pas de (penser|me demander)\b/gi,
-  /\bqu'est-ce (qui|que) .{0,10} (va pas|cloche) chez moi\b/gi,
-  /\bje suis (nul|nulle|inutile|stupide|pathétique)\b/gi,
-  /\bpersonne (ne )?(m'aime|me comprend|s'en soucie)\b/gi,
-  /\btout le monde (me déteste|m'abandonne|me quitte)\b/gi,
-  /\bje (ne )?(serai|ferai|pourrai) jamais\b/gi,
-  /\brien (ne )?va\b/gi,
+  /\bpourquoi (?:est-ce que )?je\b/gi,
+  /\bc'est (?:de )?ma faute\b/gi,
+  /\bj'aurais (?:dû|pu)\b/gi,
+  /\bje n'aurais pas (?:dû|pu)\b/gi,
+  /\bsi seulement (?:je|j')\b/gi,
+  /\bje (?:n'arrête|arrête) pas de (?:penser|me demander)\b/gi,
+  /\bqu'est-ce (?:qui|que) \S{0,20} (?:va pas|cloche) chez moi\b/gi,
+  /\bje suis (?:nul|nulle|inutile|stupide|pathétique)\b/gi,
+  /\bpersonne (?:ne )?(?:m'aime|me comprend|s'en soucie)\b/gi,
+  /\btout le monde (?:me déteste|m'abandonne|me quitte)\b/gi,
+  /\bje (?:ne )?(?:serai|ferai|pourrai) jamais\b/gi,
+  /\brien (?:ne )?va\b/gi,
   /\bje me déteste\b/gi,
-  /\bje (suis|me sens) (un|une) (raté|ratée|fardeau|déception)\b/gi,
+  /\bje (?:suis|me sens) (?:un|une) (?:raté|ratée|fardeau|déception)\b/gi,
 ];
 
 // ---------------------------------------------------------------------------
@@ -1124,15 +1124,18 @@ export function computeAffAbsolutist(tokens, lists) {
 export function computeDisPerseveration(tokens, lists) {
   if (tokens.length < 6) return 0.5;
 
+  // Limit tokens to prevent memory exhaustion on very large transcripts
+  const safeTokens = tokens.length > 10000 ? tokens.slice(0, 10000) : tokens;
+
   // Build 3-gram, 4-gram, and 5-gram counts (content-bearing sequences)
   const ngramCounts = {};
   let totalNgrams = 0;
 
   for (let n = 3; n <= 5; n++) {
-    for (let i = 0; i <= tokens.length - n; i++) {
-      const ngram = tokens.slice(i, i + n).join(' ');
+    for (let i = 0; i <= safeTokens.length - n; i++) {
+      const ngram = safeTokens.slice(i, i + n).join(' ');
       // Only count if at least one content word is present
-      const hasContent = tokens.slice(i, i + n).some(
+      const hasContent = safeTokens.slice(i, i + n).some(
         w => !lists.functionWords.has(w) && w.length > 2
       );
       if (hasContent) {

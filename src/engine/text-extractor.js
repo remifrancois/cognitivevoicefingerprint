@@ -309,27 +309,46 @@ async function extractPass(transcript, {
     throw new Error('V5 extraction: failed to parse JSON from Opus response');
   }
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  // Parse with prototype pollution protection
+  const parsed = JSON.parse(jsonMatch[0], (key, value) => {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') return undefined;
+    return value;
+  });
+
+  // Validate response structure
+  if (!parsed.indicators || typeof parsed.indicators !== 'object') {
+    throw new Error('V5 extraction: invalid response structure — missing indicators object');
+  }
 
   // Post-extraction anomaly detection: flag suspiciously uniform scores
   // (possible prompt injection creating uniform values)
-  if (parsed.indicators && typeof parsed.indicators === 'object') {
-    const values = Object.values(parsed.indicators)
-      .filter(v => v && typeof v === 'object' && typeof v.value === 'number')
-      .map(v => v.value);
+  const values = Object.values(parsed.indicators)
+    .filter(v => v && typeof v === 'object' && typeof v.value === 'number')
+    .map(v => v.value);
 
-    if (values.length > 5) {
-      const uniqueValues = new Set(values.map(v => Math.round(v * 100)));
-      if (uniqueValues.size <= 2) {
-        throw new Error('V5 extraction anomaly: suspiciously uniform scores detected (possible prompt injection)');
-      }
+  if (values.length > 5) {
+    const uniqueValues = new Set(values.map(v => Math.round(v * 100)));
+    if (uniqueValues.size <= 2) {
+      throw new Error('V5 extraction anomaly: suspiciously uniform scores detected (possible prompt injection)');
+    }
+    // Also detect all-zero or all-one patterns
+    if (values.every(v => v === 0) || values.every(v => v === 1)) {
+      throw new Error('V5 extraction anomaly: all scores identical (possible prompt injection)');
     }
   }
 
+  // Validate and whitelist genre
+  const VALID_GENRES = new Set([
+    'narrative_travel', 'procedural_recipe', 'hypothetical_wishes',
+    'daily_routine', 'emotional_personal', 'academic'
+  ]);
+  const genre = VALID_GENRES.has(parsed.genre) ? parsed.genre : 'daily_routine';
+
   return {
-    genre: parsed.genre || 'daily_routine',
-    genre_confidence: typeof parsed.genre_confidence === 'number' ? parsed.genre_confidence : 0.5,
-    indicators: parsed.indicators || {},
+    genre,
+    genre_confidence: typeof parsed.genre_confidence === 'number'
+      ? Math.max(0, Math.min(1, parsed.genre_confidence)) : 0.5,
+    indicators: parsed.indicators,
   };
 }
 

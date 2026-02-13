@@ -184,6 +184,10 @@ function getFtdDomainRate(domain) {
 function linearSlope(xs, ys) {
   const n = xs.length;
   if (n < 2) return 0;
+  // Validate inputs for NaN/Infinity
+  for (let i = 0; i < n; i++) {
+    if (!Number.isFinite(xs[i]) || !Number.isFinite(ys[i])) return 0;
+  }
   const xMean = xs.reduce((a, b) => a + b, 0) / n;
   const yMean = ys.reduce((a, b) => a + b, 0) / n;
   let num = 0, den = 0;
@@ -191,7 +195,10 @@ function linearSlope(xs, ys) {
     num += (xs[i] - xMean) * (ys[i] - yMean);
     den += (xs[i] - xMean) ** 2;
   }
-  return den !== 0 ? num / den : 0;
+  if (den === 0) return 0;
+  const result = num / den;
+  // Bound to realistic rates
+  return Number.isFinite(result) ? Math.max(-0.5, Math.min(0.5, result)) : 0;
 }
 
 // ════════════════════════════════════════════════════════

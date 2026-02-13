@@ -63,8 +63,12 @@ import crypto from 'crypto';
 import { performance } from 'perf_hooks';
 
 const PATIENT_ID_REGEX = /^[a-zA-Z0-9_-]{1,64}$/;
-const MAX_PATIENTS = 10000;
-const MAX_SESSIONS_PER_PATIENT = 1000;
+const MAX_PATIENTS = 1000;
+const MAX_SESSIONS_PER_PATIENT = 500;
+const MAX_AUDIO_BASE64_LENGTH = 10485760; // 10MB
+const MAX_CONFOUNDERS = 10;
+const PATIENT_ID_SCHEMA = { type: 'string', minLength: 1, maxLength: 64, pattern: '^[a-zA-Z0-9_-]+$' };
+const WEEK_NUMBER_SCHEMA = { type: 'number', minimum: 1, maximum: 104 };
 
 // ════════════════════════════════════════════════
 // PERFORMANCE METRICS
@@ -137,6 +141,15 @@ function saveBaselineLocal(patientId, baseline) { baselines.set(patientId, basel
 
 export default async function v5Routes(app) {
 
+  // Global error handler: sanitize errors before sending to clients
+  app.setErrorHandler((err, request, reply) => {
+    const statusCode = err.statusCode || 500;
+    const isDev = process.env.NODE_ENV === 'development';
+    reply.code(statusCode).send({
+      error: statusCode >= 500 && !isDev ? 'Internal server error' : (err.message || 'An error occurred'),
+    });
+  });
+
   // ────────────────────────────────────────────
   // 1. POST /process — Daily session (text + optional audio)
   // ────────────────────────────────────────────
@@ -162,7 +175,7 @@ export default async function v5Routes(app) {
           audioBase64: { type: 'string', maxLength: 10485760 },
           audioFormat: { type: 'string', default: 'wav', enum: ['wav', 'mp3', 'ogg', 'webm', 'flac'] },
           language: { type: 'string', default: 'fr', enum: ['fr', 'en'] },
-          confounders: { type: 'object', additionalProperties: { type: 'boolean' } },
+          confounders: { type: 'object', maxProperties: MAX_CONFOUNDERS, additionalProperties: { type: 'boolean' } },
           durationSeconds: { type: 'number', minimum: 0, maximum: 3600 },
           mode: { type: 'string', enum: ['full', 'early_detection'], default: 'full' },
         }
@@ -337,23 +350,22 @@ export default async function v5Routes(app) {
         type: 'object',
         required: ['patientId', 'audioBase64', 'taskType'],
         properties: {
-          patientId: { type: 'string' },
-          audioBase64: { type: 'string' },
-          audioFormat: { type: 'string', default: 'wav' },
+          patientId: PATIENT_ID_SCHEMA,
+          audioBase64: { type: 'string', maxLength: MAX_AUDIO_BASE64_LENGTH },
+          audioFormat: { type: 'string', default: 'wav', enum: ['wav', 'mp3', 'ogg', 'webm', 'flac'] },
           taskType: { type: 'string', enum: ['sustained_vowel', 'ddk', 'category_fluency', 'depression_screen', 'attention_fluctuation', 'pragmatic_probe'] },
-          language: { type: 'string', default: 'fr' },
+          language: { type: 'string', default: 'fr', enum: ['fr', 'en'] },
         }
       }
     }
   }, async (request, reply) => {
     const { patientId, audioBase64, audioFormat, taskType, language } = request.body;
+    validatePatientId(patientId);
     const audioStart = performance.now();
     const patientHash = crypto.createHash('sha256').update(patientId).digest('hex').slice(0, 8);
 
     const patient = getPatient(patientId);
     if (!patient) return reply.code(404).send({ error: 'Patient not found' });
-
-    console.log(`[V5] Processing ${taskType} micro-task audio for patient_${patientHash}...`);
 
     const audioBuffer = Buffer.from(audioBase64, 'base64');
     const features = await extractMicroTaskAudio(audioBuffer, taskType, {
@@ -388,14 +400,15 @@ export default async function v5Routes(app) {
         type: 'object',
         required: ['patientId', 'weekNumber'],
         properties: {
-          patientId: { type: 'string' },
-          weekNumber: { type: 'number' },
-          microTaskResults: { type: 'object' },
+          patientId: PATIENT_ID_SCHEMA,
+          weekNumber: WEEK_NUMBER_SCHEMA,
+          microTaskResults: { type: 'object', maxProperties: 10, additionalProperties: { type: 'number', minimum: 0, maximum: 1 } },
         }
       }
     }
   }, async (request, reply) => {
     const { patientId, weekNumber, microTaskResults } = request.body;
+    validatePatientId(patientId);
     const weeklyStart = performance.now();
     const patientHash = crypto.createHash('sha256').update(patientId).digest('hex').slice(0, 8);
 
@@ -431,9 +444,10 @@ export default async function v5Routes(app) {
   // 4. GET /drift/:patientId — Latest drift
   // ────────────────────────────────────────────
   app.get('/drift/:patientId', {
-    schema: { params: { type: 'object', properties: { patientId: { type: 'string' } } } }
+    schema: { params: { type: 'object', required: ['patientId'], properties: { patientId: PATIENT_ID_SCHEMA } } }
   }, async (request, reply) => {
     const { patientId } = request.params;
+    validatePatientId(patientId);
     const baseline = getBaseline(patientId);
     if (!baseline?.complete) return reply.code(400).send({ error: 'Baseline not established' });
 
@@ -450,9 +464,10 @@ export default async function v5Routes(app) {
   // 5. GET /timeline/:patientId — Full timeline
   // ────────────────────────────────────────────
   app.get('/timeline/:patientId', {
-    schema: { params: { type: 'object', properties: { patientId: { type: 'string' } } } }
+    schema: { params: { type: 'object', required: ['patientId'], properties: { patientId: PATIENT_ID_SCHEMA } } }
   }, async (request, reply) => {
     const { patientId } = request.params;
+    validatePatientId(patientId);
     const patient = getPatient(patientId);
     if (!patient) return reply.code(404).send({ error: 'Patient not found' });
 
@@ -493,9 +508,10 @@ export default async function v5Routes(app) {
   // 6. GET /differential/:patientId — 10-condition differential
   // ────────────────────────────────────────────
   app.get('/differential/:patientId', {
-    schema: { params: { type: 'object', properties: { patientId: { type: 'string' } } } }
+    schema: { params: { type: 'object', required: ['patientId'], properties: { patientId: PATIENT_ID_SCHEMA } } }
   }, async (request, reply) => {
     const { patientId } = request.params;
+    validatePatientId(patientId);
     const baseline = getBaseline(patientId);
     if (!baseline?.complete) return reply.code(400).send({ error: 'Baseline not established' });
 
@@ -521,9 +537,10 @@ export default async function v5Routes(app) {
   // 7. GET /trajectory/:patientId — 12-week prediction
   // ────────────────────────────────────────────
   app.get('/trajectory/:patientId', {
-    schema: { params: { type: 'object', properties: { patientId: { type: 'string' } } } }
+    schema: { params: { type: 'object', required: ['patientId'], properties: { patientId: PATIENT_ID_SCHEMA } } }
   }, async (request, reply) => {
     const { patientId } = request.params;
+    validatePatientId(patientId);
     const weeklyHistory = await listWeeklyReports(patientId);
     if (weeklyHistory.length < 3) return reply.code(400).send({ error: 'Need at least 3 weekly reports for trajectory prediction' });
 
@@ -539,9 +556,10 @@ export default async function v5Routes(app) {
   // 8. GET /pd/:patientId — PD-specific analysis
   // ────────────────────────────────────────────
   app.get('/pd/:patientId', {
-    schema: { params: { type: 'object', properties: { patientId: { type: 'string' } } } }
+    schema: { params: { type: 'object', required: ['patientId'], properties: { patientId: PATIENT_ID_SCHEMA } } }
   }, async (request, reply) => {
     const { patientId } = request.params;
+    validatePatientId(patientId);
     const baseline = getBaseline(patientId);
     if (!baseline?.complete) return reply.code(400).send({ error: 'Baseline not established' });
 
@@ -576,12 +594,13 @@ export default async function v5Routes(app) {
   // ────────────────────────────────────────────
   app.get('/micro-tasks/:patientId', {
     schema: {
-      params: { type: 'object', properties: { patientId: { type: 'string' } } },
-      querystring: { type: 'object', properties: { weekNumber: { type: 'number' } } }
+      params: { type: 'object', required: ['patientId'], properties: { patientId: PATIENT_ID_SCHEMA } },
+      querystring: { type: 'object', properties: { weekNumber: WEEK_NUMBER_SCHEMA } }
     }
   }, async (request, reply) => {
     const { patientId } = request.params;
-    const weekNumber = request.query.weekNumber || 1;
+    validatePatientId(patientId);
+    const weekNumber = Math.max(1, Math.min(104, Math.floor(request.query.weekNumber || 1)));
 
     const patient = getPatient(patientId);
     if (!patient) return reply.code(404).send({ error: 'Patient not found' });
@@ -627,8 +646,15 @@ export default async function v5Routes(app) {
   // ────────────────────────────────────────────
   // 10. GET /report/:patientId/:weekNumber — Weekly report
   // ────────────────────────────────────────────
-  app.get('/report/:patientId/:weekNumber', async (request, reply) => {
-    const report = await loadWeeklyReport(request.params.patientId, parseInt(request.params.weekNumber));
+  app.get('/report/:patientId/:weekNumber', {
+    schema: { params: { type: 'object', required: ['patientId', 'weekNumber'], properties: { patientId: PATIENT_ID_SCHEMA, weekNumber: { type: 'string', pattern: '^[0-9]{1,3}$' } } } }
+  }, async (request, reply) => {
+    validatePatientId(request.params.patientId);
+    const week = parseInt(request.params.weekNumber, 10);
+    if (!Number.isInteger(week) || week < 1 || week > 104) {
+      return reply.code(400).send({ error: 'Invalid weekNumber: must be 1-104' });
+    }
+    const report = await loadWeeklyReport(request.params.patientId, week);
     if (!report) return reply.code(404).send({ error: 'Report not found' });
     return report;
   });
@@ -636,7 +662,10 @@ export default async function v5Routes(app) {
   // ────────────────────────────────────────────
   // 11. GET /reports/:patientId — All reports
   // ────────────────────────────────────────────
-  app.get('/reports/:patientId', async (request) => {
+  app.get('/reports/:patientId', {
+    schema: { params: { type: 'object', required: ['patientId'], properties: { patientId: PATIENT_ID_SCHEMA } } }
+  }, async (request) => {
+    validatePatientId(request.params.patientId);
     return await listWeeklyReports(request.params.patientId);
   });
 
@@ -683,7 +712,10 @@ export default async function v5Routes(app) {
   // ────────────────────────────────────────────
   // 13. GET /baseline/:patientId — Baseline status
   // ────────────────────────────────────────────
-  app.get('/baseline/:patientId', async (request) => {
+  app.get('/baseline/:patientId', {
+    schema: { params: { type: 'object', required: ['patientId'], properties: { patientId: PATIENT_ID_SCHEMA } } }
+  }, async (request) => {
+    validatePatientId(request.params.patientId);
     const baseline = getBaseline(request.params.patientId);
     if (!baseline) return { version: 'v5', status: 'not_started', sessions: 0, target: 14 };
     return {
@@ -834,7 +866,7 @@ export default async function v5Routes(app) {
         type: 'object',
         required: ['patientId'],
         properties: {
-          patientId: { type: 'string' },
+          patientId: PATIENT_ID_SCHEMA,
           method: { type: 'string', enum: ['loo_cv', 'split_half', 'both'], default: 'loo_cv' },
           minBaseline: { type: 'number', minimum: 3, maximum: 20, default: 5 },
         }

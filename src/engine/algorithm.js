@@ -186,14 +186,19 @@ export function computeComposite(domainScores) {
   const available = [];
 
   for (const [domain, weight] of Object.entries(DOMAIN_WEIGHTS)) {
-    if (domainScores[domain] == null) { nullWeight += weight; }
-    else { available.push({ weight, score: domainScores[domain] }); totalWeight += weight; }
+    const score = domainScores[domain];
+    if (score == null || !Number.isFinite(score)) { nullWeight += weight; }
+    else { available.push({ weight, score }); totalWeight += weight; }
   }
   if (totalWeight === 0) return 0;
 
-  const factor = (totalWeight + nullWeight) / totalWeight;
+  // Bound amplification factor to prevent extreme weight redistribution
+  const factor = Math.min((totalWeight + nullWeight) / totalWeight, 2.0);
   let composite = 0;
-  for (const { weight, score } of available) composite += score * weight * factor;
+  for (const { weight, score } of available) {
+    const term = score * weight * factor;
+    if (Number.isFinite(term)) composite += term;
+  }
 
   const adjustedTotal = totalWeight + nullWeight;
   const availableCount = Object.keys(DOMAIN_WEIGHTS).length;
@@ -448,25 +453,29 @@ const CONFOUNDER_WEIGHTS = {
  * medication_change: V3 global + reduces pd_motor weight by 0.5
  * emotional_distress: V5 adds pragmatic (0.6) and executive (0.8) adjustments
  */
+const ALLOWED_CONFOUNDERS = new Set(Object.keys(CONFOUNDER_WEIGHTS));
+
 export function applyConfounders(zScores, domainScores, confounders = {}) {
   let globalWeight = 1.0;
   const domainAdj = {};
 
   for (const [confounder, active] of Object.entries(confounders)) {
     if (!active) continue;
+    // Only accept known confounders (whitelist)
+    if (!ALLOWED_CONFOUNDERS.has(confounder)) continue;
     const config = CONFOUNDER_WEIGHTS[confounder];
     if (!config) continue;
-    if (config.global) globalWeight = Math.min(globalWeight, config.global);
+    if (config.global) globalWeight = Math.max(0.1, Math.min(globalWeight, config.global));
     if (config.domain_specific) {
       for (const [d, adj] of Object.entries(config.domain_specific)) {
-        domainAdj[d] = (domainAdj[d] || 1.0) * adj;
+        domainAdj[d] = Math.max(0.1, Math.min(10, (domainAdj[d] || 1.0) * adj));
       }
     }
   }
 
   const adjusted = { ...domainScores };
   for (const [domain, score] of Object.entries(adjusted)) {
-    if (score == null) continue;
+    if (score == null || !Number.isFinite(score)) continue;
     adjusted[domain] = score * globalWeight * (domainAdj[domain] || 1.0);
   }
   return { domainScores: adjusted, globalWeight, domainAdjustments: domainAdj };
@@ -489,7 +498,9 @@ export function checkSentinels(zScores) {
 
     for (const id of sentinelIds) {
       const zVal = z[id];
-      if (zVal == null) continue;
+      if (zVal == null || !Number.isFinite(zVal)) continue;
+      // Reject extreme z-scores (likely computational errors, not real signals)
+      if (Math.abs(zVal) > 5) continue;
       if (zVal < threshold) {
         triggered++;
         details.push({ indicator: id, z_score: Math.round(zVal * 100) / 100, name: INDICATORS[id].name });

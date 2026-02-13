@@ -1,7 +1,7 @@
 # Security Implementation — HIPAA-Aligned Architecture
 
-**MemoVoice CVF Engine V2**
-Last updated: 2026-02-11
+**MemoVoice CVF Engine V5**
+Last updated: 2026-02-13
 
 ---
 
@@ -559,4 +559,97 @@ Contact: remifrancois [at] github
 
 ---
 
-**Status:** Development (Private)
+---
+
+## 13. CVF V5 Engine-Level Security (v5.0.2)
+
+The V5 "deep_voice" engine implements defense-in-depth hardening across all 14 JavaScript modules and the Python audio pipeline.
+
+### 13.1 API Input Validation
+
+All 17 Fastify endpoints enforce strict schemas:
+
+| Control | Implementation |
+|---|---|
+| Patient ID | Alphanumeric + `_-`, 1-64 chars, validated via `PATIENT_ID_SCHEMA` on every endpoint |
+| Audio payload | `audioBase64` capped at 10MB (`maxLength: 10485760`) |
+| Audio format | Enum: `wav`, `mp3`, `ogg`, `webm`, `flac` |
+| Language | Enum: `fr`, `en` |
+| Week number | Integer, bounded [1, 104] |
+| Confounders | `maxProperties: 10` |
+| Micro-task results | `maxProperties: 10`, values must be numbers in [0, 1] |
+| Error responses | Global Fastify error handler returns generic messages for 500 errors in production |
+
+### 13.2 Prototype Pollution Protection
+
+All `JSON.parse()` calls on external data use a reviver function:
+
+```javascript
+JSON.parse(data, (key, value) => {
+  if (key === '__proto__' || key === 'constructor' || key === 'prototype') return undefined;
+  return value;
+});
+```
+
+**Applied in:**
+- `acoustic-pipeline.js` — Python subprocess stdout
+- `text-extractor.js` — Claude API response JSON
+
+### 13.3 LLM Output Validation
+
+The text extractor validates all Claude Opus 4.6 responses:
+
+| Check | Action |
+|---|---|
+| Structure validation | Response must contain `indicators` object |
+| Genre whitelist | Only 6 known genres accepted; unknown defaults to `daily_routine` |
+| Confidence bounds | `genre_confidence` clamped to [0, 1] |
+| Anomaly detection | All-zero or all-one indicator patterns rejected (prompt injection defense) |
+
+### 13.4 Numeric Safety for Medical Scoring
+
+| Function | Defense |
+|---|---|
+| `computeComposite()` | Filters non-finite domain scores, bounds weight redistribution factor to 2.0, per-term NaN check |
+| `applyConfounders()` | Whitelist of known confounder keys (`ALLOWED_CONFOUNDERS`), domain multipliers bounded [0.1, 10], global weight bounded [0.1, 1.0] |
+| `checkSentinels()` | Rejects non-finite z-scores, rejects extreme values (|z| > 5) |
+| `linearSlope()` | Validates all inputs are finite, bounds result to [-0.5, 0.5] |
+
+### 13.5 ReDoS Mitigation
+
+French ruminative regex patterns in `nlp-deterministic.js` hardened:
+
+| Before | After |
+|---|---|
+| `.{0,5}` wildcards | `\S{0,20}` (no backtracking) |
+| `.{0,10}` wildcards | `\S{0,20}` (bounded, non-dot) |
+| Capturing groups `(...)` | Non-capturing `(?:...)` |
+
+### 13.6 Memory Exhaustion Defense
+
+| Input | Limit |
+|---|---|
+| `computeDisPerseveration()` tokens | 10,000 max |
+| `audioBase64` | 10MB max |
+| `confounders` object | 10 properties max |
+| `microTaskResults` | 10 properties max, numeric values only |
+
+### 13.7 Audio Pipeline Safety
+
+| Control | Implementation |
+|---|---|
+| Whisper model allowlist | Only `tiny`, `base`, `small`, `medium`, `large`, `large-v2`, `large-v3` accepted |
+| File size limit | Audio files > 500MB rejected before processing |
+| Empty file rejection | Zero-byte audio files rejected |
+| Path traversal | `cleanup()` validates paths are within `os.tmpdir()` before deletion |
+
+### 13.8 Resource Limits
+
+| Resource | Limit |
+|---|---|
+| `MAX_PATIENTS` | 1,000 |
+| `MAX_SESSIONS_PER_PATIENT` | 500 |
+
+---
+
+**Status:** Open Source
