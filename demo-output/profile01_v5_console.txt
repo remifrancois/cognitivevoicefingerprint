@@ -1,0 +1,281 @@
+╔════════════════════════════════════════════════════════════════╗
+║  MemoVoice CVF V5 "deep_voice" — Full Diagnostic Analysis    ║
+║  107 indicators | 11 domains | 30 rules | 10 conditions      ║
+╚════════════════════════════════════════════════════════════════╝
+
+Loaded 10 sessions + 9 text feature sets.
+
+Speaker Profile: FEMALE (avg F0: 201.1 Hz)
+
+━━━ STEP 1: Feature Vector Assembly (107 indicators) ━━━
+
+  [session01] 52 text + 18 audio + 20 anchors = 70 ind | genre=hypothetical_wishes (52%) | 188.16s
+  [session02] 52 text + 18 audio + 20 anchors = 70 ind | genre=daily_routine (39%) | 206.34s
+  [session03] 52 text + 18 audio + 20 anchors = 70 ind | genre=emotional_personal (51%) | 337.89s
+  [session04] 52 text + 18 audio + 20 anchors = 70 ind | genre=procedural_recipe (79%) | 273.53s
+  [session05] 52 text + 18 audio + 20 anchors = 70 ind | genre=daily_routine (45%) | 405.63s
+  [session06] 52 text + 18 audio + 20 anchors = 70 ind | genre=hypothetical_wishes (68%) | 285.27s
+  [session07] 52 text + 18 audio + 20 anchors = 70 ind | genre=daily_routine (0%) | 225.92s
+  [session08] Skipped (no text features)
+  [session09] 52 text + 18 audio + 20 anchors = 70 ind | genre=hypothetical_wishes (99%) | 124.41s
+  [session10] 52 text + 18 audio + 20 anchors = 70 ind | genre=daily_routine (100%) | 254.93s
+
+  9 complete feature vectors assembled.
+
+━━━ STEP 2: Baseline Computation ━━━
+
+  Status: COMPLETE
+  Sessions: 9 | Audio: 9 sessions
+  High variance: 6 indicators
+    LEX_LIGHT_VERB, SYN_FRAGMENT_RATE, AFF_ABSOLUTIST, PDM_PPE, PDM_RPDE, PDM_VOT
+
+  Key Baseline Values (mean +/- std):
+    LEX_TTR                    0.414 +/- 0.095 (n=9)
+    SEM_IDEA_DENSITY           0.640 +/- 0.045 (n=9)
+    SEM_REF_COHERENCE          0.658 +/- 0.023 (n=9)
+    SYN_MLU                    0.940 +/- 0.139 (n=9)
+    TMP_LPR                    0.473 +/- 0.020 (n=9)
+    ACU_F0_SD                  0.721 +/- 0.093 (n=9)
+    ACU_HNR                    0.322 +/- 0.046 (n=9)
+    PDM_PPE                    0.345 +/- 0.369 (n=9)
+    AFF_NEG_VALENCE            0.814 +/- 0.032 (n=9)
+
+━━━ STEP 3: Per-Session V5 Analysis (Topic-Adjusted) ━━━
+
+  [G] [session01] Composite:  -0.028 | GREEN  | 70 ind | genre=hypothetical_wishes | 188.16s
+    lex=0.20 syn=0.14 sem=0.13 tem=-0.51 dis=-0.14 aff=-0.15 aco=0.08 pd_=-0.14
+    ! SENTINEL: alzheimer (2/9)
+    ! SENTINEL: depression (2/7)
+    ~ CASCADE: alzheimer stage 0 -- pre_symptomatic_fluency (sev=0.51)
+  [G] [session02] Composite:  -0.449 | GREEN  | 70 ind | genre=daily_routine | 206.34s
+    lex=-0.05 syn=-0.09 sem=-0.15 tem=-0.24 dis=-0.68 aff=-0.58 aco=0.06 pd_=-0.51
+    ! SENTINEL: alzheimer (2/9)
+    ! SENTINEL: parkinson (2/11)
+    ! SENTINEL: ftd (3/9)
+    ~ CASCADE: depression stage 0 -- affective_shift (sev=0.58)
+  [G] [session03] Composite:   1.020 | GREEN  | 70 ind | genre=emotional_personal | 337.89s
+    lex=0.42 syn=1.21 sem=0.99 tem=-0.03 dis=0.93 aff=-0.54 aco=0.04 pd_=0.04
+    ! SENTINEL: depression (4/7)
+    ! SENTINEL: parkinson (3/11)
+    ! SENTINEL: lbd (3/8)
+    ~ CASCADE: depression stage 0 -- affective_shift (sev=0.54)
+  [G] [session04] Composite:  -0.068 | GREEN  | 70 ind | genre=procedural_recipe | 273.53s
+    lex=-0.29 syn=-0.93 sem=-0.12 tem=0.60 dis=-0.45 aff=-0.15 aco=0.15 pd_=0.71
+    ! SENTINEL: alzheimer (2/9)
+    ! SENTINEL: depression (2/7)
+    ! SENTINEL: ftd (2/9)
+  [G] [session05] Composite:   0.575 | GREEN  | 70 ind | genre=daily_routine | 405.63s
+    lex=0.09 syn=0.67 sem=0.72 tem=0.18 dis=0.33 aff=-0.15 aco=-0.18 pd_=-0.03
+    ! SENTINEL: parkinson (2/11)
+    ! SENTINEL: lbd (2/8)
+  [G] [session06] Composite:   0.252 | GREEN  | 70 ind | genre=hypothetical_wishes | 285.27s
+    lex=0.26 syn=0.07 sem=0.16 tem=0.06 dis=0.12 aff=0.69 aco=-0.20 pd_=0.05
+    ! SENTINEL: depression (2/7)
+    ! SENTINEL: parkinson (2/11)
+    ! SENTINEL: lbd (2/8)
+  [G] [session07] Composite:  -0.459 | GREEN  | 70 ind | genre=daily_routine | 225.92s
+    lex=-0.41 syn=-0.55 sem=-0.37 tem=0.20 dis=-0.40 aff=-0.12 aco=0.19 pd_=-0.17
+    ! SENTINEL: ftd (2/9)
+  [Y] [session09] Composite:  -0.991 | YELLOW | 70 ind | genre=hypothetical_wishes | 124.41s
+    lex=-0.10 syn=-0.54 sem=-1.45 tem=-0.33 dis=-0.12 aff=0.50 aco=-0.06 pd_=-0.09
+    ! SENTINEL: alzheimer (6/9)
+    ! SENTINEL: depression (3/7)
+    ! SENTINEL: parkinson (3/11)
+    ! SENTINEL: lbd (2/8)
+    ! SENTINEL: ftd (2/9)
+  [G] [session10] Composite:   0.192 | GREEN  | 70 ind | genre=daily_routine | 254.93s
+    lex=-0.09 syn=-0.03 sem=0.16 tem=0.10 dis=0.42 aff=0.51 aco=-0.08 pd_=0.13
+
+━━━ STEP 4: Cross-Validation (Fixes Self-Referential Baseline) ━━━
+
+  LOO Cross-Validation:
+    Mean composite: -0.112
+    Std composite:  1.005
+    Consistency:    0.000
+    Analyzed:       9/9 sessions
+      [session01] loo_composite=-0.049 | alert=green | genre=?
+      [session02] loo_composite=-0.368 | alert=green | genre=?
+      [session03] loo_composite=1.299 | alert=green | genre=?
+      [session04] loo_composite=-0.156 | alert=green | genre=?
+      [session05] loo_composite=0.652 | alert=green | genre=?
+      [session06] loo_composite=0.376 | alert=green | genre=?
+      [session07] loo_composite=-0.521 | alert=yellow | genre=?
+      [session09] loo_composite=-2.536 | alert=red | genre=?
+      [session10] loo_composite=0.295 | alert=green | genre=?
+
+  Split-Half Cross-Validation:
+    Odd half mean:  0.708 (5 sessions)
+    Even half mean: -0.749 (4 sessions)
+    Consistency:    0.000
+    Reliability:    0.922
+
+━━━ STEP 5: Aggregate Profile Analysis (11 Domains) ━━━
+
+  AGGREGATE COMPOSITE: 0.005 -> [GREEN]
+
+  CROSS-VALIDATED COMPOSITE: -0.112 -> GREEN
+
+  Domain Scores (11-domain average):
+  +----------------+---------+--------+-----------------------------------+
+  | Domain         |  Score  | Weight | Visual                            |
+  +----------------+---------+--------+-----------------------------------+
+  | semantic       |   0.008 |  0.18  | ################                  |
+  | lexical        |   0.003 |  0.13  | ################                  |
+  | temporal       |   0.004 |  0.11  | ################                  |
+  | acoustic       |  -0.000 |  0.11  | ################                  |
+  | syntactic      |  -0.006 |  0.09  | ################                  |
+  | memory         |    N/A  |  0.09  | --                                |
+  | pd_motor       |   0.000 |  0.09  | ################                  |
+  | discourse      |   0.000 |  0.05  | ################                  |
+  | affective      |   0.002 |  0.04  | ################                  |
+  | pragmatic      |    N/A  |  0.06  | --                                |
+  | executive      |    N/A  |  0.05  | --                                |
+  +----------------+---------+--------+-----------------------------------+
+
+━━━ STEP 6: Topic Genre Impact Analysis ━━━
+
+  Genre Distribution:
+    daily_routine             4 session(s) | avg composite: -0.035
+    hypothetical_wishes       3 session(s) | avg composite: -0.255
+    emotional_personal        1 session(s) | avg composite: 1.020
+    procedural_recipe         1 session(s) | avg composite: -0.068
+
+  Topic Adjustment Impact (per session):
+    [session01] hypothetical_wishes: no significant adjustment
+    [session02] daily_routine: no significant adjustment
+    [session03] emotional_personal: raw=1.007 -> adj=1.020 (shift=+0.013)
+    [session04] procedural_recipe: raw=-0.104 -> adj=-0.068 (shift=+0.035)
+    [session05] daily_routine: no significant adjustment
+    [session06] hypothetical_wishes: no significant adjustment
+    [session07] daily_routine: no significant adjustment
+    [session09] hypothetical_wishes: no significant adjustment
+    [session10] daily_routine: no significant adjustment
+
+━━━ STEP 7: Deterministic NLP Anchors ━━━
+
+  20 deterministic indicators computed per session:
+
+    LEX_TTR                    0.414 +/- 0.095 (n=9)
+    LEX_MATTR                  0.925 +/- 0.010 (n=9)
+    LEX_CONTENT_DENSITY        0.557 +/- 0.023 (n=9)
+    LEX_PRONOUN_NOUN           0.890 +/- 0.009 (n=9)
+    LEX_VERBAL_OUTPUT          0.958 +/- 0.083 (n=9)
+    LEX_CLOSED_OPEN            0.445 +/- 0.037 (n=9)
+    LEX_LIGHT_VERB             0.208 +/- 0.080 (n=9)
+    LEX_NID_RATE               0.661 +/- 0.010 (n=9)
+    SYN_MLU                    0.940 +/- 0.139 (n=9)
+    SYN_FRAGMENT_RATE          0.511 +/- 0.245 (n=9)
+    TMP_FILLER_RATE            0.803 +/- 0.026 (n=9)
+    TMP_REPETITION             0.535 +/- 0.065 (n=9)
+    TMP_SPEECH_RATE            0.354 +/- 0.000 (n=9)
+    AFF_SELF_PRONOUN           0.774 +/- 0.147 (n=9)
+    AFF_NEG_VALENCE            0.814 +/- 0.032 (n=9)
+    AFF_ABSOLUTIST             0.599 +/- 0.201 (n=9)
+    DIS_PERSEVERATION          0.592 +/- 0.041 (n=9)
+    LEX_GENERIC_SUB            0.619 +/- 0.139 (n=9)
+    LEX_DEATH_WORDS            0.792 +/- 0.071 (n=9)
+    LEX_RUMINATIVE             0.627 +/- 0.107 (n=9)
+
+━━━ STEP 8: Differential Diagnosis (30-Rule Engine, 10 Conditions) ━━━
+
+  Probability Distribution:
+    normal_aging     69.2% #####################
+    depression       30.8% #########
+    alzheimer         0.0% 
+    parkinson         0.0% 
+    medication        0.0% 
+    grief             0.0% 
+    msa               0.0% 
+    psp               0.0% 
+    lbd               0.0% 
+    ftd               0.0% 
+
+  Primary:    NORMAL_AGING
+  Secondary:  depression
+  Confidence: 67%
+  Rules Fired: 3
+
+  Evidence:
+    DEPRESSION:
+      - Referential coherence preserved (z=0.01) — rules against AD
+    NORMAL_AGING:
+      - All domains within normal range (>-0.3) — consistent with healthy aging
+      - Self-correction preserved — metacognition intact
+
+  Recommendations:
+    -> Continue standard monitoring. No concerns at this time.
+
+━━━ STEP 9: LBD & FTD Pattern Detection (V5 New) ━━━
+
+  LBD Pattern: not detected
+  FTD Pattern: not detected
+
+━━━ STEP 10: Cascade & Sentinel Analysis (5 Patterns) ━━━
+
+  No active cascade patterns detected.
+
+  No sentinel alerts triggered.
+
+━━━ STEP 11: PD Motor Analysis ━━━
+
+  PD Signature: not detected (conf=0%)
+
+━━━ STEP 12: Acoustic Voice Signature ━━━
+
+  +--------------------------------------------+----------+----------+----+
+  | Feature                                    |     Mean |   StdDev |  n |
+  +--------------------------------------------+----------+----------+----+
+  | Fundamental Frequency                      |  201.141 |    7.504 |  9 |
+  | F0 Standard Deviation                      |   47.309 |    7.118 |  9 |
+  | F0 Range                                   |  421.228 |    4.345 |  9 |
+  | Jitter (vocal fold stability)              |    0.016 |    0.001 |  9 |
+  | Shimmer (amplitude stability)              |    0.076 |    0.003 |  9 |
+  | Harmonics-to-Noise Ratio                   |   18.993 |    0.853 |  9 |
+  | MFCC-2 (vocal tract shape)                 |   80.088 |    5.946 |  9 |
+  | Cepstral Peak Prominence                   |    1.577 |    0.067 |  9 |
+  | Pitch Period Entropy (PD marker)           |    0.974 |    0.262 |  9 |
+  | RPDE (periodicity)                         |    0.832 |    0.188 |  9 |
+  | DFA (fractal scaling)                      |    0.569 |    0.018 |  9 |
+  | Spectral Harmonicity                       |    0.482 |    0.054 |  9 |
+  | Energy Dynamic Range                       |   62.218 |    3.187 |  9 |
+  +--------------------------------------------+----------+----------+----+
+
+━━━ STEP 13: Session-to-Session Stability ━━━
+
+  Composite scores across sessions:
+    session01:  -0.028 [hypothetical_wishes] ####################
+    session02:  -0.449 [daily_routine] ################
+    session03:   1.020 [emotional_personal] ##############################
+    session04:  -0.068 [procedural_recipe] ###################
+    session05:   0.575 [daily_routine] ##########################
+    session06:   0.252 [hypothetical_wishes] #######################
+    session07:  -0.459 [daily_routine] ###############
+    session09:  -0.991 [hypothetical_wishes] ##########
+    session10:   0.192 [daily_routine] ######################
+
+  Mean: 0.005 | Std: 0.565 | CV: 0.00
+  Pattern: VARIABLE
+
+━━━ STEP 14: 12-Week Trajectory Prediction ━━━
+
+  Predicted composite scores (12 weeks):
+    Week  1:   0.192 [green] ##################
+    Week  2:   0.192 [green] ##################
+    Week  3:   0.192 [green] ##################
+    Week  4:   0.192 [green] ##################
+    Week  5:   0.192 [green] ##################
+    Week  6:   0.192 [green] ##################
+    Week  7:   0.192 [green] ##################
+    Week  8:   0.192 [green] ##################
+    Week  9:   0.192 [green] ##################
+    Week 10:   0.192 [green] ##################
+    Week 11:   0.192 [green] ##################
+    Week 12:   0.192 [green] ##################
+
+  Predicted alert at week none (stable)
+
+==================================================================
+  V5 "deep_voice" analysis complete.
+  Full results -> /Users/code/cognitivevoicefingerprint/demo-output/profile01_v5_results.json
+==================================================================
+

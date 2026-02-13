@@ -250,25 +250,34 @@ async function main() {
       topic_genre: sv.topic_genre,
     }));
     cvResults = batchAnalyzeWithCrossValidation(cvSessions);
-    shResults = splitHalfCrossValidation(cvSessions);
+    shResults = splitHalfCrossValidation(cvSessions, { minBaseline: 3 });
 
     if (cvResults) {
+      const agg = cvResults.aggregate || {};
       console.log(`  LOO Cross-Validation:`);
-      console.log(`    Mean composite: ${cvResults.mean_composite?.toFixed(3) || 'N/A'}`);
-      console.log(`    Std composite:  ${cvResults.std_composite?.toFixed(3) || 'N/A'}`);
-      console.log(`    Stability:      ${cvResults.stability || 'N/A'}`);
-      if (cvResults.per_session) {
-        for (const ps of cvResults.per_session) {
-          console.log(`      [${ps.session_id}] loo_composite=${ps.composite?.toFixed(3) || 'N/A'} | alert=${ps.alert_level || 'N/A'}`);
+      console.log(`    Mean composite: ${agg.mean_composite?.toFixed(3) || 'N/A'}`);
+      console.log(`    Std composite:  ${agg.std_composite?.toFixed(3) || 'N/A'}`);
+      console.log(`    Consistency:    ${agg.consistency?.toFixed(3) || 'N/A'}`);
+      console.log(`    Analyzed:       ${cvResults.analyzed}/${cvResults.total_sessions} sessions`);
+      if (cvResults.results) {
+        for (const ps of cvResults.results.filter(r => r.status === 'analyzed')) {
+          console.log(`      [${ps.session_id}] loo_composite=${ps.composite?.toFixed(3) || 'N/A'} | alert=${ps.alert_level || 'N/A'} | genre=${ps.topic_genre || '?'}`);
         }
       }
     }
 
     if (shResults) {
+      const shAgg = shResults.aggregate || {};
+      const oddComps = (shResults.results?.odd || []).filter(r => r.status === 'analyzed').map(r => r.composite);
+      const evenComps = (shResults.results?.even || []).filter(r => r.status === 'analyzed').map(r => r.composite);
+      const halfAMean = oddComps.length > 0 ? oddComps.reduce((a, b) => a + b, 0) / oddComps.length : null;
+      const halfBMean = evenComps.length > 0 ? evenComps.reduce((a, b) => a + b, 0) / evenComps.length : null;
       console.log(`\n  Split-Half Cross-Validation:`);
-      console.log(`    Half A composite: ${shResults.half_a_composite?.toFixed(3) || 'N/A'}`);
-      console.log(`    Half B composite: ${shResults.half_b_composite?.toFixed(3) || 'N/A'}`);
-      console.log(`    Consistency:      ${shResults.consistency?.toFixed(3) || 'N/A'}`);
+      console.log(`    Odd half mean:  ${halfAMean?.toFixed(3) || 'N/A'} (${oddComps.length} sessions)`);
+      console.log(`    Even half mean: ${halfBMean?.toFixed(3) || 'N/A'} (${evenComps.length} sessions)`);
+      console.log(`    Consistency:    ${shAgg.consistency?.toFixed(3) || 'N/A'}`);
+      const rel = shResults.reliability;
+      console.log(`    Reliability:    ${typeof rel === 'number' ? rel.toFixed(3) : (rel?.spearman_brown?.toFixed(3) || JSON.stringify(rel) || 'N/A')}`);
     }
   } catch (e) {
     console.log(`  Cross-validation error: ${e.message}`);
@@ -296,7 +305,7 @@ async function main() {
   console.log(`  AGGREGATE COMPOSITE: ${avgComposite.toFixed(3)} -> ${alertIcon}\n`);
 
   // Use cross-validated composite if available
-  const cvComposite = cvResults?.mean_composite;
+  const cvComposite = cvResults?.aggregate?.mean_composite;
   if (cvComposite != null) {
     const cvAlert = getAlertLevel(cvComposite);
     console.log(`  CROSS-VALIDATED COMPOSITE: ${cvComposite.toFixed(3)} -> ${cvAlert.toUpperCase()}`);
@@ -550,18 +559,17 @@ async function main() {
 
   let trajectoryResult = null;
   try {
-    trajectoryResult = predictTrajectory(avgDomainScores, differential.primary_hypothesis, {
-      weeks_of_data: sessionVectors.length,
-      current_composite: avgComposite,
-    });
+    // predictTrajectory expects (history[], differential, cascade, weeks)
+    trajectoryResult = predictTrajectory(sessionResults, differential, aggCascade, 12);
 
     if (trajectoryResult?.predictions) {
       console.log('  Predicted composite scores (12 weeks):');
       for (const p of trajectoryResult.predictions) {
         const bar = '#'.repeat(Math.round(Math.max(0, (p.composite + 2) * 8)));
-        console.log(`    Week ${String(p.week).padStart(2)}: ${p.composite.toFixed(3).padStart(7)} ${bar}`);
+        const wk = p.week_offset || p.week || '?';
+        console.log(`    Week ${String(wk).padStart(2)}: ${p.composite.toFixed(3).padStart(7)} [${p.alert_level || '?'}] ${bar}`);
       }
-      console.log(`\n  Predicted alert at week ${trajectoryResult.predicted_alert_week || 'none'}`);
+      console.log(`\n  Predicted alert at week ${trajectoryResult.predicted_alert_week || 'none (stable)'}`);
     }
   } catch (e) {
     console.log(`  Trajectory prediction error: ${e.message}`);

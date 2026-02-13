@@ -1240,7 +1240,8 @@ export function computeLexRuminative(rawText, sentences, lists) {
  * @returns {{ [id: string]: number }} Map of indicator ID to score (0.0-1.0)
  */
 export function computeDeterministicIndicators(transcript, language = 'en', options = {}) {
-  const rawText = extractPatientSpeech(transcript);
+  // Accept both string transcripts and structured [{role, text}] arrays
+  const rawText = typeof transcript === 'string' ? transcript : extractPatientSpeech(transcript);
   const tokens = tokenize(rawText);
   const sentences = splitSentences(rawText);
   const lists = getWordLists(language);
