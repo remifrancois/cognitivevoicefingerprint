@@ -1,0 +1,13 @@
+# Core acoustic analysis (required for audio features)
+parselmouth>=0.4.3
+librosa>=0.10.0
+nolds>=0.5.2
+numpy>=1.24.0
+scipy>=1.10.0
+
+# GPU acceleration (optional, significant speedup)
+torch>=2.0
+torchaudio>=2.0
+
+# Whisper word-level timestamps (optional, enables 5 temporal indicators)
+openai-whisper>=20231117

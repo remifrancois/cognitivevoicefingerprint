@@ -1,0 +1,65 @@
+{
+  "name": "cognitive-voice-fingerprint",
+  "version": "5.0.0",
+  "description": "Open-source cognitive voice fingerprinting engine — detects Alzheimer's, Parkinson's, Depression, LBD, and FTD from voice analysis. 107 indicators, 11 domains, 10 conditions.",
+  "type": "module",
+  "main": "src/engine/index.js",
+  "exports": {
+    ".": "./src/engine/index.js",
+    "./indicators": "./src/engine/indicators.js",
+    "./algorithm": "./src/engine/algorithm.js",
+    "./differential": "./src/engine/differential.js",
+    "./topic-profiles": "./src/engine/topic-profiles.js",
+    "./nlp-deterministic": "./src/engine/nlp-deterministic.js",
+    "./text-extractor": "./src/engine/text-extractor.js",
+    "./acoustic-pipeline": "./src/engine/acoustic-pipeline.js",
+    "./pd-engine": "./src/engine/pd-engine.js",
+    "./trajectory": "./src/engine/trajectory.js",
+    "./micro-tasks": "./src/engine/micro-tasks.js",
+    "./cross-validation": "./src/engine/cross-validation.js",
+    "./weekly-deep": "./src/engine/weekly-deep.js"
+  },
+  "scripts": {
+    "analyze": "node scripts/run_v5_analysis.mjs",
+    "start": "node src/engine/api.js"
+  },
+  "keywords": [
+    "alzheimer",
+    "parkinson",
+    "dementia",
+    "depression",
+    "cognitive",
+    "voice",
+    "fingerprint",
+    "speech-analysis",
+    "nlp",
+    "acoustic",
+    "clinical",
+    "biomarker",
+    "early-detection",
+    "lewy-body",
+    "frontotemporal",
+    "claude",
+    "opus",
+    "anthropic"
+  ],
+  "author": "Remi Francois",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/remifrancois/cognitivevoicefingerprint.git"
+  },
+  "homepage": "https://github.com/remifrancois/cognitivevoicefingerprint",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "fastify": "^5.0.0",
+    "@fastify/cors": "^10.0.0"
+  },
+  "optionalDependencies": {
+    "@fastify/helmet": "^12.0.0",
+    "@fastify/rate-limit": "^10.0.0"
+  }
+}
