@@ -493,6 +493,12 @@ For questions, collaboration inquiries, clinical validation partnerships, or fee
 
 ---
 
+## Acknowledgments
+
+Thank you Anthropic for the 2026 Hackathon on Claude Opus 4.6.
+
+---
+
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
